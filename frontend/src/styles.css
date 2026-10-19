@@ -659,6 +659,7 @@ h1 {
   font-weight: 500;
 }
 .table-scroll {
+  position: relative;
   overflow: auto;
 }
 table {
