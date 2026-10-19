@@ -1,3 +1,4 @@
+import { caseFold } from "unicode-case-folding";
 import type {
   Analytics,
   Balances,
@@ -220,7 +221,7 @@ export function createMockService(): Service {
       if (!name.trim()) fail("Member name is required.");
       if (
         getMembers(id).some(
-          (m) => m.name.toLowerCase() === name.trim().toLowerCase(),
+          (m) => caseFold(m.name.trim()) === caseFold(name.trim()),
         )
       )
         fail("A member with this name already exists.");

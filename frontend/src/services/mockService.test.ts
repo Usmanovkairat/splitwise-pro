@@ -53,3 +53,21 @@ describe("mockService financial behavior", () => {
     ).toBe(51);
   });
 });
+describe("regression #37: per-group Unicode member uniqueness", () => {
+  it("trims names, rejects case-fold equivalents, allows names in other groups", async () => {
+    const s = createMockService();
+    const first = await s.addMember("g1", " Straße ");
+    expect(first.name).toBe("Straße");
+    await expect(s.addMember("g1", " STRASSE ")).rejects.toThrow(
+      "already exists",
+    );
+    await expect(s.addMember("g1", "straße")).rejects.toThrow("already exists");
+    expect(
+      (await s.listMembers("g1")).filter((m) => m.name === "Straße"),
+    ).toHaveLength(1);
+    await expect(s.addMember("g2", "STRASSE")).resolves.toMatchObject({
+      name: "STRASSE",
+    });
+    await expect(s.addMember("g1", "   ")).rejects.toThrow("required");
+  });
+});

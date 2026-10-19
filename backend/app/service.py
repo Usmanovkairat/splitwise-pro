@@ -23,6 +23,8 @@ class Service:
         self.repo.delete_group(group_id)
     def add_member(self, group_id, data):
         self.group(group_id)
+        if any(m['name'].casefold() == data['name'].casefold() for m in self.repo.list('members', group_id)):
+            raise DomainError('A member with this name already exists')
         return self.repo.save('members',dict(id=str(uuid4()),group_id=group_id,**data))
     def remove_member(self, group_id, member_id):
         self.group(group_id)
