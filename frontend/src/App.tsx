@@ -206,6 +206,14 @@ function App() {
     balances = balanceQuery.data,
     settlements = settlementQuery.data || [],
     analytics = analyticsQuery.data;
+  const groupDataPending =
+    !!id &&
+    !["/groups", "/settings"].includes(location.pathname) &&
+    (memberQuery.isPending ||
+      expenseQuery.isPending ||
+      balanceQuery.isPending ||
+      settlementQuery.isPending ||
+      analyticsQuery.isPending);
   const name = (memberId: string) =>
     members.find((m) => m.id === memberId)?.name || "Member";
   const invalidate = async () => {
@@ -690,9 +698,14 @@ function App() {
                     </button>
                   </div>
                 )}
-              {!group &&
-              location.pathname !== "/groups" &&
-              location.pathname !== "/settings" ? (
+              {groupDataPending ? (
+                <div className="loading" role="status">
+                  <LoaderCircle className="spin" size={20} />
+                  Loading your group…
+                </div>
+              ) : !group &&
+                location.pathname !== "/groups" &&
+                location.pathname !== "/settings" ? (
                 <div className="card">
                   <Empty
                     title="Bring your people together"

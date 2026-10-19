@@ -1,4 +1,7 @@
-import { afterEach, describe, it, expect } from "vitest";
+vi.mock("./services", async () => ({
+  service: (await import("./services/mockService")).createMockService(),
+}));
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -92,8 +95,38 @@ describe("regressions #35 and #36", () => {
     expect(screen.getByText("Jane Smith")).toBeInTheDocument();
     view.unmount();
     mount("/settings");
-    expect(await screen.findByLabelText("Display name")).toHaveValue("Jane Smith");
+    expect(await screen.findByLabelText("Display name")).toHaveValue(
+      "Jane Smith",
+    );
     expect(screen.getByText("Jane Smith")).toBeInTheDocument();
     localStorage.removeItem("splitwise-display-name");
+  });
+});
+describe("API lifecycle presentation", () => {
+  it("shows a loading state while workspace data is pending", async () => {
+    mount("/groups");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Getting your workspace ready",
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Lisbon getaway" }),
+    ).toBeInTheDocument();
+  });
+  it("shows a retryable query error and recovers when the service returns", async () => {
+    const { service } = await import("./services");
+    const request = vi
+      .spyOn(service, "listGroups")
+      .mockRejectedValue(new Error("Cannot reach the local server."));
+    mount("/groups");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Cannot reach the local server.",
+    );
+    request.mockRestore();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "Try again" }));
+    expect(
+      await screen.findByRole("heading", { name: "Lisbon getaway" }),
+    ).toBeInTheDocument();
   });
 });
