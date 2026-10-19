@@ -1,0 +1,1123 @@
+openapi: 3.1.0
+info:
+  title: SplitWise Pro API
+  version: 1.0.0
+  description: Local-first single-workspace shared expense ledger. Integer minor currency
+    units only (2 decimals for KZT/USD/EUR/GBP). Names and descriptions are trimmed.
+    All writes validated atomically. Empty workspace on first start. In-memory and
+    SQLite implementations share this contract. Invalid input returns 422 with detail
+    string; missing resource 404. No authentication or real money transfer.
+servers:
+- url: http://127.0.0.1:8000
+tags:
+- name: System
+- name: Groups
+- name: Members
+- name: Expenses
+- name: Balances
+- name: Settlements
+- name: Analytics
+paths:
+  /api/health:
+    get:
+      tags:
+      - System
+      summary: Service health
+      operationId: get_health
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Resource not found
+        '409':
+          description: 'Resource conflict: a referenced member cannot be removed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: 'Resource conflict: a referenced member cannot be removed'
+        '422':
+          description: Invalid input or domain invariant violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid input or domain invariant violation
+  /api/groups:
+    get:
+      tags:
+      - Groups
+      summary: List all groups
+      operationId: get_groups
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Group'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Resource not found
+        '409':
+          description: 'Resource conflict: a referenced member cannot be removed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: 'Resource conflict: a referenced member cannot be removed'
+        '422':
+          description: Invalid input or domain invariant violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid input or domain invariant violation
+    post:
+      tags:
+      - Groups
+      summary: Create a group
+      operationId: post_groups
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Resource not found
+        '409':
+          description: 'Resource conflict: a referenced member cannot be removed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: 'Resource conflict: a referenced member cannot be removed'
+        '422':
+          description: Invalid input or domain invariant violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid input or domain invariant violation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupInput'
+  /api/groups/{group_id}:
+    get:
+      tags:
+      - Groups
+      summary: Get group details
+      operationId: get_groups_group_id
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Resource not found
+        '409':
+          description: 'Resource conflict: a referenced member cannot be removed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: 'Resource conflict: a referenced member cannot be removed'
+        '422':
+          description: Invalid input or domain invariant violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid input or domain invariant violation
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema: &id001
+          type: string
+          minLength: 1
+          maxLength: 100
+    put:
+      tags:
+      - Groups
+      summary: Rename group and update description
+      operationId: put_groups_group_id
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Resource not found
+        '409':
+          description: 'Resource conflict: a referenced member cannot be removed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: 'Resource conflict: a referenced member cannot be removed'
+        '422':
+          description: Invalid input or domain invariant violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid input or domain invariant violation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupUpdate'
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema: *id001
+    delete:
+      tags:
+      - Groups
+      summary: Delete group and all ledger data
+      operationId: delete_groups_group_id
+      responses:
+        '204':
+          description: Success
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Resource not found
+        '409':
+          description: 'Resource conflict: a referenced member cannot be removed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: 'Resource conflict: a referenced member cannot be removed'
+        '422':
+          description: Invalid input or domain invariant violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid input or domain invariant violation
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema: *id001
+      description: Cascades expenses, shares, settlements and members in one transaction.
+  /api/groups/{group_id}/members:
+    get:
+      tags:
+      - Members
+      summary: List group members
+      operationId: get_groups_group_id_members
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Member'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Resource not found
+        '409':
+          description: 'Resource conflict: a referenced member cannot be removed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: 'Resource conflict: a referenced member cannot be removed'
+        '422':
+          description: Invalid input or domain invariant violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid input or domain invariant violation
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema: *id001
+    post:
+      tags:
+      - Members
+      summary: Add a member
+      operationId: post_groups_group_id_members
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Resource not found
+        '409':
+          description: 'Resource conflict: a referenced member cannot be removed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: 'Resource conflict: a referenced member cannot be removed'
+        '422':
+          description: Invalid input or domain invariant violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid input or domain invariant violation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberInput'
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema: *id001
+  /api/groups/{group_id}/members/{member_id}:
+    delete:
+      tags:
+      - Members
+      summary: Remove an unused member
+      operationId: delete_groups_group_id_members_member_id
+      responses:
+        '204':
+          description: Success
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Resource not found
+        '409':
+          description: 'Resource conflict: a referenced member cannot be removed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: 'Resource conflict: a referenced member cannot be removed'
+        '422':
+          description: Invalid input or domain invariant violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid input or domain invariant violation
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema: *id001
+      - name: member_id
+        in: path
+        required: true
+        schema: *id001
+      description: Returns 409 if referenced by an expense payer, selected participant,
+        or settlement.
+  /api/groups/{group_id}/expenses:
+    get:
+      tags:
+      - Expenses
+      summary: List expense history
+      operationId: get_groups_group_id_expenses
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Expense'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Resource not found
+        '409':
+          description: 'Resource conflict: a referenced member cannot be removed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: 'Resource conflict: a referenced member cannot be removed'
+        '422':
+          description: Invalid input or domain invariant violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid input or domain invariant violation
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema: *id001
+      - name: q
+        in: query
+        schema: &id002
+          type: string
+        description: Case insensitive description search
+      - name: category
+        in: query
+        schema: *id002
+        description: Exact category filter
+      - name: date_from
+        in: query
+        schema: &id003
+          type: string
+          format: date
+        description: Inclusive start date
+      - name: date_to
+        in: query
+        schema: *id003
+        description: Inclusive end date
+      description: Returns all matching expenses, ordered date descending then ID.
+        Local workspace scope needs no pagination.
+    post:
+      tags:
+      - Expenses
+      summary: Create an expense
+      operationId: post_groups_group_id_expenses
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Resource not found
+        '409':
+          description: 'Resource conflict: a referenced member cannot be removed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: 'Resource conflict: a referenced member cannot be removed'
+        '422':
+          description: Invalid input or domain invariant violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid input or domain invariant violation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseInput'
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema: *id001
+  /api/groups/{group_id}/expenses/{expense_id}:
+    put:
+      tags:
+      - Expenses
+      summary: Replace an expense
+      operationId: put_groups_group_id_expenses_expense_id
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Resource not found
+        '409':
+          description: 'Resource conflict: a referenced member cannot be removed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: 'Resource conflict: a referenced member cannot be removed'
+        '422':
+          description: Invalid input or domain invariant violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid input or domain invariant violation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseInput'
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema: *id001
+      - name: expense_id
+        in: path
+        required: true
+        schema: *id001
+    delete:
+      tags:
+      - Expenses
+      summary: Delete an expense
+      operationId: delete_groups_group_id_expenses_expense_id
+      responses:
+        '204':
+          description: Success
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Resource not found
+        '409':
+          description: 'Resource conflict: a referenced member cannot be removed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: 'Resource conflict: a referenced member cannot be removed'
+        '422':
+          description: Invalid input or domain invariant violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid input or domain invariant violation
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema: *id001
+      - name: expense_id
+        in: path
+        required: true
+        schema: *id001
+  /api/groups/{group_id}/balances:
+    get:
+      tags:
+      - Balances
+      summary: Calculate member balances and simplified settlements
+      operationId: get_groups_group_id_balances
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Balances'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Resource not found
+        '409':
+          description: 'Resource conflict: a referenced member cannot be removed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: 'Resource conflict: a referenced member cannot be removed'
+        '422':
+          description: Invalid input or domain invariant violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid input or domain invariant violation
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema: *id001
+      description: paid_minor minus owed_minor plus outgoing settlements minus incoming
+        settlements gives net_minor. Net sum is zero. Suggestions pair largest debt
+        and credit (ID breaks ties), do not promise globally minimal transfer count.
+  /api/groups/{group_id}/settlements:
+    get:
+      tags:
+      - Settlements
+      summary: List settlement history
+      operationId: get_groups_group_id_settlements
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Settlement'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Resource not found
+        '409':
+          description: 'Resource conflict: a referenced member cannot be removed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: 'Resource conflict: a referenced member cannot be removed'
+        '422':
+          description: Invalid input or domain invariant violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid input or domain invariant violation
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema: *id001
+    post:
+      tags:
+      - Settlements
+      summary: Record partial or full settlement
+      operationId: post_groups_group_id_settlements
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settlement'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Resource not found
+        '409':
+          description: 'Resource conflict: a referenced member cannot be removed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: 'Resource conflict: a referenced member cannot be removed'
+        '422':
+          description: Invalid input or domain invariant violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid input or domain invariant violation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettlementInput'
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema: *id001
+      description: Sender must currently owe and receiver must currently be owed.
+        Different valid members required. Amount cannot exceed either outstanding
+        balance. This records money movement; does not execute payments.
+  /api/groups/{group_id}/analytics:
+    get:
+      tags:
+      - Analytics
+      summary: Get category, date and member aggregates
+      operationId: get_groups_group_id_analytics
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Analytics'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Resource not found
+        '409':
+          description: 'Resource conflict: a referenced member cannot be removed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: 'Resource conflict: a referenced member cannot be removed'
+        '422':
+          description: Invalid input or domain invariant violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid input or domain invariant violation
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema: *id001
+      description: Spending excludes settlements. Outstanding is sum of positive net
+        balances. Category and date buckets sorted ascending; contribution member
+        IDs ascending.
+components:
+  schemas:
+    GroupInput:
+      type: object
+      properties:
+        name: &id004
+          type: string
+          minLength: 1
+          maxLength: 80
+          pattern: .*\S.*
+        currency: &id005
+          type: string
+          enum:
+          - KZT
+          - USD
+          - EUR
+          - GBP
+        description: &id006
+          type: string
+          maxLength: 500
+      required:
+      - name
+      - currency
+      - description
+      additionalProperties: false
+      examples:
+      - name: Almaty roommates
+        currency: KZT
+        description: Shared apartment
+    GroupUpdate:
+      type: object
+      properties:
+        name: *id004
+        description:
+          type: string
+          maxLength: 500
+      required:
+      - name
+      - description
+      additionalProperties: false
+    Group:
+      type: object
+      properties:
+        id: *id001
+        name: *id004
+        currency: *id005
+        description: *id006
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - name
+      - currency
+      - description
+      - created_at
+      additionalProperties: false
+    MemberInput:
+      type: object
+      properties:
+        name: *id004
+      required:
+      - name
+      additionalProperties: false
+    Member:
+      type: object
+      properties:
+        id: *id001
+        group_id: *id001
+        name: *id004
+      required:
+      - id
+      - group_id
+      - name
+      additionalProperties: false
+    ExpenseInput:
+      type: object
+      properties:
+        description: &id008
+          type: string
+          minLength: 1
+          maxLength: 200
+          pattern: .*\S.*
+        amount_minor: &id009
+          type: integer
+          minimum: 1
+          maximum: 1000000000000
+        payer_id: *id001
+        category: &id010
+          type: string
+          minLength: 1
+          maxLength: 50
+          pattern: .*\S.*
+        date: *id003
+        split_type: &id011
+          type: string
+          enum:
+          - equal
+          - exact
+          - percentage
+        split_values: &id012
+          type: object
+          minProperties: 1
+          maxProperties: 100
+          additionalProperties: &id007
+            type: integer
+            minimum: 0
+            maximum: 1000000000000
+          description: Keys are participant member IDs belonging to this group. Equal
+            uses selected keys (values ignored). Exact values are minor units summing
+            to amount_minor. Percentage values are basis points summing to 10000.
+            Largest remainder allocation; ties ascending member ID.
+      required:
+      - description
+      - amount_minor
+      - payer_id
+      - category
+      - date
+      - split_type
+      - split_values
+      additionalProperties: false
+      examples:
+      - description: Groceries
+        amount_minor: 1001
+        payer_id: member-a
+        category: Food
+        date: '2026-10-20'
+        split_type: percentage
+        split_values:
+          member-a: 5000
+          member-b: 5000
+    Share:
+      type: object
+      properties:
+        member_id: *id001
+        amount_minor: *id007
+      required:
+      - member_id
+      - amount_minor
+      additionalProperties: false
+    Expense:
+      type: object
+      properties:
+        id: *id001
+        group_id: *id001
+        description: *id008
+        amount_minor: *id009
+        payer_id: *id001
+        category: *id010
+        date: *id003
+        split_type: *id011
+        split_values: *id012
+        shares:
+          type: array
+          items:
+            $ref: '#/components/schemas/Share'
+      required:
+      - id
+      - group_id
+      - description
+      - amount_minor
+      - payer_id
+      - category
+      - date
+      - split_type
+      - split_values
+      - shares
+      additionalProperties: false
+    SettlementInput:
+      type: object
+      properties:
+        from_member_id: *id001
+        to_member_id: *id001
+        amount_minor: *id009
+        date: *id003
+        note: &id013
+          type: string
+          maxLength: 500
+      required:
+      - from_member_id
+      - to_member_id
+      - amount_minor
+      - date
+      - note
+      additionalProperties: false
+      examples:
+      - from_member_id: member-b
+        to_member_id: member-a
+        amount_minor: 250
+        date: '2026-10-20'
+        note: Partial repayment
+    Settlement:
+      type: object
+      properties:
+        id: *id001
+        group_id: *id001
+        from_member_id: *id001
+        to_member_id: *id001
+        amount_minor: *id009
+        date: *id003
+        note: *id013
+      required:
+      - id
+      - group_id
+      - from_member_id
+      - to_member_id
+      - amount_minor
+      - date
+      - note
+      additionalProperties: false
+    BalanceMember:
+      type: object
+      properties:
+        member_id: *id001
+        name: *id004
+        paid_minor: *id007
+        owed_minor: *id007
+        net_minor:
+          type: integer
+      required:
+      - member_id
+      - name
+      - paid_minor
+      - owed_minor
+      - net_minor
+      additionalProperties: false
+    Suggestion:
+      type: object
+      properties:
+        from_member_id: *id001
+        to_member_id: *id001
+        amount_minor: *id009
+      required:
+      - from_member_id
+      - to_member_id
+      - amount_minor
+      additionalProperties: false
+    Balances:
+      type: object
+      properties:
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/BalanceMember'
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Suggestion'
+        total_minor: *id007
+      required:
+      - members
+      - suggestions
+      - total_minor
+      additionalProperties: false
+    CategoryTotal:
+      type: object
+      properties:
+        category: *id002
+        amount_minor: *id007
+      required:
+      - category
+      - amount_minor
+      additionalProperties: false
+    DateTotal:
+      type: object
+      properties:
+        date: *id003
+        amount_minor: *id007
+      required:
+      - date
+      - amount_minor
+      additionalProperties: false
+    Contribution:
+      type: object
+      properties:
+        member_id: *id001
+        name: *id004
+        amount_minor: *id007
+      required:
+      - member_id
+      - name
+      - amount_minor
+      additionalProperties: false
+    Analytics:
+      type: object
+      properties:
+        total_minor: *id007
+        by_category:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryTotal'
+        over_time:
+          type: array
+          items:
+            $ref: '#/components/schemas/DateTotal'
+        contributions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Contribution'
+        outstanding_minor: *id007
+      required:
+      - total_minor
+      - by_category
+      - over_time
+      - contributions
+      - outstanding_minor
+      additionalProperties: false
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+      additionalProperties: false
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - ok
+        storage:
+          type: string
+          enum:
+          - memory
+          - sqlite
+      required:
+      - status
+      - storage
+      additionalProperties: false

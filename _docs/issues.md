@@ -24,3 +24,6 @@ Base issue URL: https://github.com/Usmanovkairat/splitwise-pro/issues
 
 ## PM grooming audit
 All initial issue scopes include the seven requested sections. Concrete prerequisite numbers in the dependency graph above supersede shorthand words in the original creation draft. Acceptance verification includes actual execution rather than document existence alone. API/storage work must preserve the same numerical contract; UI work includes empty/loading/error feedback. Issues are not auto-closed by implementation commits; independent QA records PASS first.
+
+## Observed bug #34 — mobile overflow
+Independent QA confirmed document width 498px at viewport390 after 500ms settling with reduced motion. PM groomed the real defect on GitHub: preserve accessible action labels/content, constrain offending layout, assert document width on all main screens, verify form reachability and desktop layout, capture regression screenshot. Suspected table header is a lead, not a claimed root cause. Engineer may fix after QA regression definition; independent QA rerun is required before closure.
