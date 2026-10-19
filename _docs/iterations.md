@@ -4,7 +4,7 @@ This ledger separates intended stages from executed evidence. Pending entries ar
 
 | Stage | Deliverable | Evidence status |
 |---|---|---|
-| 0 | Planning, roles, design, issue backlog | PM planning written; publication/QA pending |
+| 0 | Planning, roles, design, issue backlog | Published planning commit `d23aa034`; independent planning QA PASS for #1/#3; frontend not yet published |
 | 1 | Complete frontend with mockService | Pending |
 | 2 | Validated openapi.yml | Pending |
 | 3 | Independent in-memory API | Pending |

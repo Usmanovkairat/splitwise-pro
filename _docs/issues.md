@@ -21,3 +21,6 @@ Base issue URL: https://github.com/Usmanovkairat/splitwise-pro/issues
 
 ## Concrete dependencies
 #2/#3 precede #4/#5. #4/#5 precede #6–#11; #10 precedes #12–#14. #12–#14 precede #15, which precedes #16/#17. Mock frontend acceptance precedes #18 contract. #18 precedes #19 memory API. #19 precedes #20 models, #21 migrations and #22 SQLite. #22 and frontend acceptance precede #23 integration. #24 validates all APIs. #25–#29 cover invariant/API/UI/browser/accessibility checks; #30 CI and #31 final acceptance require all relevant checks. #32/#33 are future scope, intentionally open.
+
+## PM grooming audit
+All initial issue scopes include the seven requested sections. Concrete prerequisite numbers in the dependency graph above supersede shorthand words in the original creation draft. Acceptance verification includes actual execution rather than document existence alone. API/storage work must preserve the same numerical contract; UI work includes empty/loading/error feedback. Issues are not auto-closed by implementation commits; independent QA records PASS first.
