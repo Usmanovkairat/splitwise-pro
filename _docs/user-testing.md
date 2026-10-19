@@ -10,3 +10,12 @@ For each executed check record: date/environment, issue, exact steps/command, ex
 
 ## Current result
 Not yet verified. Populate after actual execution.
+
+## Actual interim findings from independent QA
+- #34: at390px, document width498 persisted after500ms/reduced-motion settling. PM groomed responsive fix and regression; final rerun status is not recorded here yet.
+- #35: duplicate existing member Kairat leaves modal open but emits green success/check toast, which is aria-hidden outside the modal. PM requires active-dialog alert and success/error distinction.
+- #36: saving QA Person in Settings retains input but sidebar remains Kairat Usmanov. PM requires local preference application and refresh/invalid-name regressions.
+
+These observed failures are not final acceptance PASS. Engineers implement; independent QA reruns and root records verified closure/evidence.
+
+- #37: actual memory API returned201 for Alice and alice in one group, unlike mock. PM requires trimmed/casefold same-group uniqueness with422, cross-group allowance, memory/SQLite equivalence and integrated rejection alert. Verification pending independent rerun.

@@ -135,6 +135,12 @@ function App() {
   const [selected, setSelected] = useState(""),
     [mobile, setMobile] = useState(false),
     [notice, setNotice] = useState(""),
+    [mutationError, setMutationError] = useState(""),
+    [displayName, setDisplayName] = useState(
+      () =>
+        localStorage.getItem("splitwise-display-name")?.trim() ||
+        "Kairat Usmanov",
+    ),
     [modal, setModal] = useState<
       "group" | "expense" | "settlement" | "member" | "rename" | null
     >(null),
@@ -142,6 +148,9 @@ function App() {
     [settlementDefaults, setSettlementDefaults] = useState<
       Partial<SettlementInput>
     >({});
+  useEffect(() => {
+    setMutationError("");
+  }, [modal]);
   const groupsQuery = useQuery({
     queryKey: ["groups"],
     queryFn: () => service.listGroups(),
@@ -206,13 +215,18 @@ function App() {
     mutationFn: async (fn: () => Promise<unknown>) => fn(),
     onSuccess: async () => {
       await invalidate();
+      setMutationError("");
       setNotice("All done. Your workspace is up to date.");
       setModal(null);
       setEditing(undefined);
     },
-    onError: (e) => setNotice(e.message),
+    onError: (e) => setMutationError(e.message),
   });
-  const act = (fn: () => Promise<unknown>) => mutate.mutate(fn);
+  const act = (fn: () => Promise<unknown>) => {
+    setMutationError("");
+    setNotice("");
+    mutate.mutate(fn);
+  };
   const addExpense = () => {
     setEditing(undefined);
     setModal("expense");
@@ -513,9 +527,9 @@ function App() {
             Settings
           </NavLink>
           <div className="profile">
-            <Avatar name="Kairat Usmanov" />
+            <Avatar name={displayName} />
             <div>
-              <strong>Kairat Usmanov</strong>
+              <strong>{displayName}</strong>
               <small>Personal account</small>
             </div>
             <MoreHorizontal size={18} />
@@ -552,7 +566,7 @@ function App() {
               <span />
               Local workspace
             </span>
-            <Avatar name="Kairat Usmanov" size="small" />
+            <Avatar name={displayName} size="small" />
           </div>
         </header>
         <main>
@@ -605,6 +619,19 @@ function App() {
                 className="icon-button"
                 aria-label="Dismiss notification"
                 onClick={() => setNotice("")}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+          {mutationError && !modal && (
+            <div role="alert" className="error-banner">
+              <AlertCircle size={20} />
+              <span>{mutationError}</span>
+              <button
+                className="icon-button"
+                aria-label="Dismiss error"
+                onClick={() => setMutationError("")}
               >
                 <X size={16} />
               </button>
@@ -1148,7 +1175,12 @@ function App() {
                   />
                   <Route
                     path="/settings"
-                    element={<SettingsPage onNotice={setNotice} />}
+                    element={
+                      <SettingsPage
+                        onNotice={setNotice}
+                        onSaved={setDisplayName}
+                      />
+                    }
                   />
                   <Route
                     path="*"
@@ -1192,6 +1224,11 @@ function App() {
             : "Create a group for a trip, a home, or something worth sharing."
         }
       >
+        {mutationError && (
+          <div role="alert" className="form-error">
+            {mutationError}
+          </div>
+        )}
         <GroupForm
           group={modal === "rename" ? group : undefined}
           pending={mutate.isPending}
@@ -1210,6 +1247,11 @@ function App() {
         title="Pull up a chair"
         description="Add someone to your shared group."
       >
+        {mutationError && (
+          <div role="alert" className="form-error">
+            {mutationError}
+          </div>
+        )}
         <MemberForm
           pending={mutate.isPending}
           onSubmit={(name) => act(() => service.addMember(id, name))}
@@ -1221,6 +1263,11 @@ function App() {
         title={editing ? "Edit the details" : "A new shared moment"}
         description={`Record an expense in ${group?.name || "your group"}.`}
       >
+        {mutationError && (
+          <div role="alert" className="form-error">
+            {mutationError}
+          </div>
+        )}
         <ExpenseForm
           key={editing?.id || `new-${id}-${modal}`}
           members={members}
@@ -1242,6 +1289,11 @@ function App() {
         title="A little closer to even"
         description="Record a payment you have already made. No money is transferred."
       >
+        {mutationError && (
+          <div role="alert" className="form-error">
+            {mutationError}
+          </div>
+        )}
         <SettlementForm
           key={JSON.stringify(settlementDefaults) + modal}
           members={members}
@@ -1461,9 +1513,13 @@ function ExpenseForm({
     if (
       !Number.isFinite(Number(amount)) ||
       !/^\d+(\.\d{1,2})?$/.test(amount) ||
-      amountMinor <= 0
+      amountMinor <= 0 ||
+      !Number.isSafeInteger(amountMinor) ||
+      amountMinor > 1e12
     ) {
-      setError("Enter a positive amount with at most two decimal places.");
+      setError(
+        "Enter a positive amount with at most two decimal places, up to 10 billion.",
+      );
       return;
     }
     if (!selected.length) {
@@ -1694,8 +1750,15 @@ function SettlementForm({
           setError("Choose two different members.");
           return;
         }
-        if (!/^\d+(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0) {
-          setError("Enter a positive amount with at most two decimals.");
+        if (
+          !/^\d+(\.\d{1,2})?$/.test(amount) ||
+          Number(amount) <= 0 ||
+          !Number.isSafeInteger(Math.round(Number(amount) * 100)) ||
+          Math.round(Number(amount) * 100) > 1e12
+        ) {
+          setError(
+            "Enter a positive amount with at most two decimals, up to 10 billion.",
+          );
           return;
         }
         onSubmit({
@@ -1802,7 +1865,13 @@ function ExpensePage({
     </section>
   );
 }
-function SettingsPage({ onNotice }: { onNotice: (message: string) => void }) {
+function SettingsPage({
+  onNotice,
+  onSaved,
+}: {
+  onNotice: (message: string) => void;
+  onSaved: (name: string) => void;
+}) {
   const [name, setName] = useState(
     () => localStorage.getItem("splitwise-display-name") || "Kairat Usmanov",
   );
@@ -1817,7 +1886,10 @@ function SettingsPage({ onNotice }: { onNotice: (message: string) => void }) {
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          if (!name.trim()) return;
           localStorage.setItem("splitwise-display-name", name.trim());
+          setName(name.trim());
+          onSaved(name.trim());
           onNotice("Your local preferences have been saved.");
         }}
       >

@@ -27,3 +27,11 @@ All initial issue scopes include the seven requested sections. Concrete prerequi
 
 ## Observed bug #34 — mobile overflow
 Independent QA confirmed document width 498px at viewport390 after 500ms settling with reduced motion. PM groomed the real defect on GitHub: preserve accessible action labels/content, constrain offending layout, assert document width on all main screens, verify form reachability and desktop layout, capture regression screenshot. Suspected table header is a lead, not a claimed root cause. Engineer may fix after QA regression definition; independent QA rerun is required before closure.
+
+## Observed bugs #35 and #36 — PM groomed
+#35: QA reproduced duplicate-member error incorrectly rendered with green check success feedback; external toast is aria-hidden by the modal. Require an error alert inside the active dialog, preserved invalid input, no false success, corrected-input success regression. Correct member dependency is #9 plus #24/#29.
+
+#36: QA saved local display name but sidebar retained hardcoded profile. Require immediate application, navigation/refresh persistence, whitespace validation retaining last valid value, consistent initials and no group-member/account mutation. Both are real reported findings; independent QA rerun remains required.
+
+## Observed bug #37 — same-group name uniqueness
+QA observed memory API accepting Alice/alice with201 while mock rejects. PM groomed trimmed Unicode-casefold key scoped to group; duplicate422 and unchanged member list; cross-group same name allowed; shared memory/SQLite regression, atomic insert and integrated modal error required. Memory base and separate fix retain chronological evidence; SQLite follows memory publication. No QA PASS claimed.

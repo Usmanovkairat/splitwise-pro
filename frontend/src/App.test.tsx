@@ -52,3 +52,48 @@ describe("workspace forms", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 });
+describe("regressions #35 and #36", () => {
+  it("shows service rejection inside the active dialog and preserves the input", async () => {
+    const user = userEvent.setup();
+    mount("/groups/g1");
+    await screen.findByText("The people behind the plans");
+    await user.click(screen.getByRole("button", { name: "Add member" }));
+    await user.type(screen.getByLabelText("Member name"), "Kairat");
+    await user.click(
+      screen.getByRole("dialog").querySelector("button[type=submit]")!,
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "already exists",
+    );
+    expect(screen.getByLabelText("Member name")).toHaveValue("Kairat");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Member name"));
+    await user.type(screen.getByLabelText("Member name"), "New friend");
+    await user.click(
+      screen.getByRole("dialog").querySelector("button[type=submit]")!,
+    );
+    expect(await screen.findByText("New friend")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+  it("updates the profile immediately and restores the saved display name", async () => {
+    const user = userEvent.setup();
+    const view = mount("/settings");
+    const input = await screen.findByLabelText("Display name");
+    await user.clear(input);
+    await user.type(input, "  Jane Smith  ");
+    await user.click(screen.getByRole("button", { name: "Save preferences" }));
+    expect(screen.getByText("Jane Smith")).toBeInTheDocument();
+    expect(localStorage.getItem("splitwise-display-name")).toBe("Jane Smith");
+    await user.clear(input);
+    await user.type(input, "   ");
+    expect(
+      screen.getByRole("button", { name: "Save preferences" }),
+    ).toBeDisabled();
+    expect(screen.getByText("Jane Smith")).toBeInTheDocument();
+    view.unmount();
+    mount("/settings");
+    expect(await screen.findByLabelText("Display name")).toHaveValue("Jane Smith");
+    expect(screen.getByText("Jane Smith")).toBeInTheDocument();
+    localStorage.removeItem("splitwise-display-name");
+  });
+});
