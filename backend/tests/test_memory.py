@@ -96,3 +96,17 @@ def test_filters_and_validation(client):
     assert client.get('/api/health').json()=={'status':'ok','storage':'memory'}
     assert client.get('/api/groups/missing').status_code==404
     assert isinstance(client.post('/api/groups',json={}).json()['detail'],str)
+
+
+def test_duplicate_member_name_is_atomic_and_scoped(client):
+    p,ids=workspace(client)
+    before=client.get(p+'/members').json()
+    for duplicate in ('alice','  ALICE  '):
+        response=client.post(p+'/members',json={'name':duplicate})
+        assert response.status_code==422
+        assert client.get(p+'/members').json()==before
+    assert client.post(p+'/members',json={'name':'Straße'}).status_code==201
+    assert client.post(p+'/members',json={'name':'STRASSE'}).status_code==422
+    p2,_=workspace(client)
+    assert client.post(p2+'/members',json={'name':'Straße'}).status_code==201
+    assert next(m for m in client.get(p+'/members').json() if m['name']=='Straße')['name']=='Straße'
