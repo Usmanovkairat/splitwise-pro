@@ -15,7 +15,8 @@
   --green: #237e60;
   --navy: #152d2b;
   --border: #e6eae2;
-  --muted: #7a877e;
+  --muted: #586b5f;
+  --sidebar-muted: #a5b9af;
 }
 * {
   box-sizing: border-box;
@@ -156,7 +157,7 @@ select:focus {
 }
 .workspace small {
   font-size: 10px;
-  color: #879e95;
+  color: var(--sidebar-muted);
   display: block;
   margin-top: 4px;
 }
@@ -166,7 +167,7 @@ select:focus {
 .nav-label {
   font-size: 9px;
   letter-spacing: 1.8px;
-  color: #79978c;
+  color: var(--sidebar-muted);
   margin: 0 13px 14px;
 }
 .nav-item {
@@ -219,7 +220,7 @@ select:focus {
 .sidebar-note p {
   font-size: 10px;
   line-height: 1.9;
-  color: #8da89a;
+  color: var(--sidebar-muted);
   margin-top: 8px;
 }
 .profile {
@@ -238,7 +239,7 @@ select:focus {
 .profile small {
   display: block;
   font-size: 10px;
-  color: #8aa195;
+  color: var(--sidebar-muted);
   margin-top: 4px;
 }
 .profile > svg {
@@ -258,7 +259,7 @@ select:focus {
 }
 .breadcrumb {
   font-size: 11px;
-  color: #929b91;
+  color: var(--muted);
   display: flex;
   gap: 14px;
   align-items: center;
@@ -277,7 +278,7 @@ select:focus {
 }
 .local-badge {
   font-size: 10px;
-  color: #7c897e;
+  color: var(--muted);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -304,7 +305,7 @@ main {
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1.9px;
-  color: #778879;
+  color: var(--muted);
   margin-bottom: 10px;
 }
 h1 {
@@ -317,7 +318,7 @@ h1 {
 }
 .page-subtitle {
   font-size: 11px;
-  color: #7c887f;
+  color: var(--muted);
   margin-top: 10px;
 }
 .heading-actions {
@@ -422,7 +423,7 @@ h1 {
 }
 .currency-badge {
   font-size: 9px;
-  color: #8a9587;
+  color: var(--muted);
   background: #edf0e9;
   border: 1px solid #e1e7da;
   border-radius: 4px;
@@ -435,7 +436,7 @@ h1 {
 }
 .context-meta {
   font-size: 10px;
-  color: #86907f;
+  color: var(--muted);
   display: flex;
   gap: 8px;
 }
@@ -467,7 +468,7 @@ h1 {
   align-items: center;
   justify-content: space-between;
   font-size: 10px;
-  color: #7b8778;
+  color: var(--muted);
   margin-bottom: 13px;
 }
 .stat-label svg {
@@ -483,7 +484,7 @@ h1 {
 .stat-unit {
   font-size: 12px;
   letter-spacing: 0;
-  color: #87937e;
+  color: var(--muted);
   font-weight: 400;
 }
 .stat-detail {
@@ -492,7 +493,7 @@ h1 {
   align-items: center;
   gap: 5px;
   margin-top: 14px;
-  color: #93a08e;
+  color: var(--muted);
 }
 .tiny-dot {
   width: 4px;
@@ -567,7 +568,7 @@ h1 {
 }
 .card-heading p {
   font-size: 10px;
-  color: #95a08d;
+  color: var(--muted);
   margin-top: 6px;
   line-height: 1.6;
 }
@@ -587,13 +588,13 @@ h1 {
   border: 1px solid #e7ebe1;
   border-radius: 5px;
   padding: 6px 8px;
-  color: #88927d;
+  color: var(--muted);
   white-space: nowrap;
   background: #fafbf8;
 }
 .soft-pill.green {
   background: #f1f6ed;
-  color: #7e9a6d;
+  color: var(--muted);
   border-color: #e1ebd8;
 }
 .chart-area {
@@ -624,7 +625,7 @@ h1 {
   display: block;
   font-size: 7px;
   letter-spacing: 1px;
-  color: #93a18a;
+  color: var(--muted);
 }
 .donut-center strong {
   display: block;
@@ -645,7 +646,7 @@ h1 {
   align-items: center;
   gap: 6px;
   font-size: 8px;
-  color: #7f8e78;
+  color: var(--muted);
 }
 .category-legend > div > span:first-child {
   height: 6px;
@@ -670,7 +671,7 @@ table {
 }
 th {
   background: #fafbf8;
-  color: #91a087;
+  color: var(--muted);
   font-size: 9px;
   font-weight: 500;
   padding: 11px 23px;
@@ -728,7 +729,7 @@ tbody tr:hover {
 .expense-description small {
   display: block;
   font-size: 8px;
-  color: #98a28e;
+  color: var(--muted);
   margin-top: 5px;
 }
 .expense-description small span {
@@ -765,7 +766,7 @@ tbody tr:hover {
   color: #b0b9a8;
 }
 .muted {
-  color: #98a28f;
+  color: var(--muted);
   font-weight: 400;
 }
 .settle-row {
@@ -791,13 +792,13 @@ tbody tr:hover {
   color: #5b7050;
 }
 .settle-copy strong span {
-  color: #8e9d82;
+  color: var(--muted);
   font-weight: 400;
 }
 .settle-copy small {
   display: block;
   font-size: 8px;
-  color: #a2ad97;
+  color: var(--muted);
   margin-top: 5px;
 }
 .settle-row > strong {
@@ -810,7 +811,7 @@ tbody tr:hover {
   align-items: center;
   justify-content: space-between;
   font-size: 8px;
-  color: #a6b09a;
+  color: var(--muted);
   margin-top: 29px;
   padding: 17px 0 25px;
   border-top: 1px solid #e8ece1;
@@ -827,7 +828,7 @@ tbody tr:hover {
   color: #39825c !important;
 }
 .negative {
-  color: #b97659 !important;
+  color: #9b5138 !important;
 }
 .empty {
   padding: 42px 20px;
@@ -854,7 +855,7 @@ tbody tr:hover {
 .empty p {
   font-size: 11px;
   line-height: 1.8;
-  color: #95a18a;
+  color: var(--muted);
   max-width: 350px;
   margin: 9px auto 17px;
 }
@@ -863,7 +864,7 @@ tbody tr:hover {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  color: #819075;
+  color: var(--muted);
   font-size: 11px;
 }
 .groups-grid {
@@ -953,13 +954,13 @@ tbody tr:hover {
 }
 .group-card-content p {
   font-size: 10px;
-  color: #8c9a7f;
+  color: var(--muted);
   margin: 11px 0 22px;
   line-height: 1.6;
 }
 .group-card-content small {
   font-size: 8px;
-  color: #a6af9b;
+  color: var(--muted);
 }
 .new-group-card {
   border: 1px dashed #ccd7bf;
@@ -969,7 +970,7 @@ tbody tr:hover {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #8c9c7b;
+  color: var(--muted);
   background: #f4f7ee;
 }
 .new-group-card > span {
@@ -988,7 +989,7 @@ tbody tr:hover {
 .new-group-card p {
   font-size: 10px;
   margin-top: 8px;
-  color: #a2ad95;
+  color: var(--muted);
 }
 .member-grid {
   display: grid;
@@ -1011,7 +1012,7 @@ tbody tr:hover {
 .member-card small {
   display: block;
   font-size: 9px;
-  color: #9fae90;
+  color: var(--muted);
   margin-top: 4px;
 }
 .member-card > button {
@@ -1029,7 +1030,7 @@ tbody tr:hover {
 }
 .group-settings p {
   font-size: 10px;
-  color: #929f87;
+  color: var(--muted);
   margin-top: 7px;
 }
 .contribution-chart {
@@ -1075,7 +1076,7 @@ tbody tr:hover {
 }
 .dialog-heading p {
   font-size: 11px;
-  color: #8b9b7f;
+  color: var(--muted);
   line-height: 1.7;
   margin-top: 8px;
 }
@@ -1103,12 +1104,12 @@ tbody tr:hover {
   min-width: 0;
 }
 .field input::placeholder {
-  color: #b1baa7;
+  color: var(--muted);
 }
 .field small {
   font-size: 10px;
   line-height: 1.6;
-  color: #97a28c;
+  color: var(--muted);
 }
 .form-grid {
   display: grid;
@@ -1139,7 +1140,7 @@ tbody tr:hover {
   display: block;
   font-size: 10px;
   margin-top: 5px;
-  color: #98a58b;
+  color: var(--muted);
 }
 .segmented {
   display: flex;
@@ -1154,7 +1155,7 @@ tbody tr:hover {
   flex: 1;
   border-radius: 4px;
   font-size: 10px;
-  color: #8c9b7c;
+  color: var(--muted);
 }
 .segmented button.selected {
   background: #fff;
@@ -1190,14 +1191,14 @@ tbody tr:hover {
   display: block;
   font-size: 8px;
   margin-top: 3px;
-  color: #b2bca6;
+  color: var(--muted);
 }
 .split-value {
   display: flex;
   align-items: center;
   gap: 7px;
   font-size: 10px;
-  color: #9aa98d;
+  color: var(--muted);
 }
 .split-value input {
   border: 1px solid #e1e8d7;
@@ -1217,14 +1218,14 @@ tbody tr:hover {
 .form-note {
   font-size: 9px;
   line-height: 1.8;
-  color: #a0ac93;
+  color: var(--muted);
   margin-top: 15px;
 }
 .form-error {
   padding: 11px 13px;
   border: 1px solid #efd8ca;
   background: #fff6ef;
-  color: #a16845;
+  color: #8b5134;
   border-radius: 6px;
   font-size: 11px;
   margin-bottom: 17px;
@@ -1257,7 +1258,7 @@ tbody tr:hover {
   padding: 14px;
   background: #fff4ec;
   border: 1px solid #eed7c6;
-  color: #a46a47;
+  color: #8b5134;
   border-radius: 7px;
   margin-bottom: 20px;
   font-size: 12px;
@@ -1271,7 +1272,7 @@ tbody tr:hover {
   align-items: center;
   gap: 10px;
   padding: 70px 15px;
-  color: #7a9170;
+  color: var(--muted);
   font-size: 13px;
 }
 .spin {
@@ -1292,7 +1293,7 @@ tbody tr:hover {
   padding: 25px;
   background: #f4f7ee;
   border-top: 1px solid #e8eddf;
-  color: #829973;
+  color: var(--muted);
 }
 .settings-info strong {
   font-size: 12px;
@@ -1301,7 +1302,7 @@ tbody tr:hover {
 .settings-info p {
   font-size: 11px;
   line-height: 1.8;
-  color: #99a68e;
+  color: var(--muted);
   margin-top: 7px;
 }
 .mobile-menu {
