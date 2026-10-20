@@ -35,3 +35,23 @@ Independent QA confirmed document width 498px at viewport390 after 500ms settlin
 
 ## Observed bug #37 — same-group name uniqueness
 QA observed memory API accepting Alice/alice with201 while mock rejects. PM groomed trimmed Unicode-casefold key scoped to group; duplicate422 and unchanged member list; cross-group same name allowed; shared memory/SQLite regression, atomic insert and integrated modal error required. Memory base and separate fix retain chronological evidence; SQLite follows memory publication. No QA PASS claimed.
+
+Independent follow-up: `_docs/qa/bug-37.md` now records all memory/mock/SQLite-restart/integrated segments PASS. Remote closure still requires root/QA publication and final issue action.
+
+## Observed bug #38 — immutable currency leaked into rename payload
+
+Extended real-API browser QA created a KZT group and attempted rename; PUT included currency and correctly failed422 against strict GroupUpdate. PM grooming comment6283144050 requires explicit name/description projection at form and API-adapter boundaries, immutable currency retained, creation currency preserved, an adapter regression with intentional runtime extras, and real KZT rename/description/list/refresh verification. Backend validation and OpenAPI must remain strict. This is an observed integration defect; final group-management acceptance remains pending independent fix rerun.
+
+Fix#38 subsequently published at `571fb77b6f2cd8bcabadf8e1d014489f5f3fdb3f`; independent QA reported all3 integrated tests PASS after the fix.
+
+## Observed bug #39 — direct group URL loses requested context
+
+Fresh browser navigation to `/groups/g2` rendered first group Lisbon getaway instead of The apartment, still wrong after5 seconds. PM grooming comment6283185144 requires valid URL group ID to take precedence over fallback, consistent reload/back/forward and detail-page picker navigation, and missing/deleted-group fallback via replace to the first existing group's detail or `/groups` when empty. QA must retain non-first direct-link regression, use async loading RTL to catch the effect race and repeat dynamic-ID API routing. No final route PASS is claimed before independent verification.
+
+Route fix#39 was published at `72aa759275c653722b201941492309268de185e4`. Root reported direct-link/reload mock regression PASS; final API-mode/current-source route acceptance remains independently reviewed.
+
+## Observed bugs #40 and #41 — existing accessibility requirements
+
+#40: independent keyboard QA opened New group with Enter, traversed10 Tab steps within the dialog, then Escape closed it but left focus on body after5 seconds. PM comment6283219114 requires capture/restoration of actual connected visible opener on Escape/cancel/close and a sensible surviving control after mutation if the opener disappears. Keep Radix initial focus/trapping and avoid global autofocus loops.
+
+#41: actual browser subtitle rgb(124,136,127) on rgb(247,248,244),11px, measured3.463 contrast. PM comment6283226073 requires semantic normal small text (subtitle/stat/detail/sidebar) contrast>=4.5 on actual surfaces; preserve fintech palette, hierarchy, labels and layout. Decorative borders/charts do not expand this bug. QA retains measured failure, corrected color/ratio evidence, screenshots and existing keyboard/mobile regressions. Both defects arise from explicit design-system/issue29 criteria; no new functionality is introduced.

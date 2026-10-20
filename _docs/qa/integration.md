@@ -1,0 +1,11 @@
+# Iteration 5 independent frontend/API integration QA
+
+Result: PASS #23 integration gate and full #37 duplicate-name regression. Independently ran `QA_CHROMIUM_PATH=/tmp/chromium npx playwright test --config playwright.integration.config.ts` from frontend:1 passed,6.9s workflow/10.3s total. Fixture creates migrated temporary SQLite database and runs actual Uvicorn8000 plus API-mode Vite5173 in the same process group.
+
+Browser created Integrated QA trip, added Alice/Bob/Carol, submitted paddedALICE and observed accessible dialog alert with input preserved. Added equal1.00,exact3.00 with1/1/1,percentage10.00 with50/25/25. Actual API responses verified all shares sum to total and uneven dollar allocations are33/33/34. Edited percentage expense; confirmed exact-expense deletion; recorded Bob→Alice partial1.00. API balances zero-sum; analytics1100 minor; settlement history matches participants/amount. Page refresh retains real settlement row. Overview shows11.00; desktop1440 and mobile390 screenshots captured after chart animation. Mobile document width<=390 and no browser JavaScript errors.
+
+Evidence screenshots: `_docs/screenshots/integrated-desktop.png`, `_docs/screenshots/integrated-mobile.png`. Mock suite remains independently selectable via Playwright config env VITE_SERVICE_MODE=mock. Final error/loading and full issue acceptance audit remains separate.
+
+Extended acceptance rerun added3 integration tests. Main lifecycle passed7.0s; loading delayed workspace request exposed role=status; controlled503 error exposed role=alert; removing intercept and Try again recovered live service (passed1.7s). Group-management test found real rename failure: UI submitted immutable currency to PUT, backend returned422 `body.currency: Extra inputs are not permitted`. Reported for new user-test-bug/PM grooming; group-management acceptance remains FAIL until fixed, overriding any broad final group-CRUD PASS inference from the principal lifecycle.
+
+Final backend/contract independent rerun at this point:54 pytest passed5.56s, source OpenAPI OK. Added seed test independently executed in this suite: explicit optional demo population, refusal to overwrite a nonempty workspace, all3 split modes and stable ledger invariants. No automatic seeding is implied.

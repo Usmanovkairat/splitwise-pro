@@ -2,7 +2,7 @@ PYTHON ?= python3
 VENV := .venv
 BIN := $(VENV)/bin
 
-.PHONY: help install api web test test-backend test-frontend build contract migrate e2e
+.PHONY: help install api web test test-backend test-frontend build contract migrate e2e e2e-integration
 
 help:
 	@echo "install: install dependencies; api/web: run servers in separate terminals"
@@ -11,7 +11,7 @@ help:
 
 install:
 	$(PYTHON) -m venv $(VENV)
-	$(BIN)/python -m pip install -r backend/requirements.txt
+	$(BIN)/python -m pip install -r backend/requirements-lock.txt
 	npm --prefix frontend ci
 
 api:
@@ -39,3 +39,6 @@ migrate:
 
 e2e:
 	cd frontend && npx playwright test
+
+e2e-integration:
+	cd frontend && npx playwright test --config playwright.integration.config.ts

@@ -3,7 +3,13 @@ node_modules/
 __pycache__/
 *.db
 *.sqlite
+*.db-wal
+*.db-shm
+*.sqlite-wal
+*.sqlite-shm
 .env
 frontend/dist/
 .pytest_cache/
 test-results/
+frontend/playwright-report/
+*.tsbuildinfo

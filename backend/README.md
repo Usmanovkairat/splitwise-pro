@@ -4,7 +4,7 @@ Run these commands from the repository root:
 
 ```sh
 python -m venv .venv
-.venv/bin/pip install -r backend/requirements.txt
+.venv/bin/pip install -r backend/requirements-lock.txt
 .venv/bin/alembic -c backend/alembic.ini upgrade head
 .venv/bin/uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
@@ -29,3 +29,13 @@ The API suite runs against both isolated memory and migrated temporary SQLite re
 The committed `openapi.yml` is the source contract. `/docs` provides interactive route documentation. Monetary inputs use integer minor units; all supported currencies have two decimals. Exact splits must sum to the amount, percentages are basis points summing to 10000, and largest fractional remainder allocation breaks ties by ascending member ID. Suggested settlements are deterministic and do not promise a globally minimal transfer count.
 
 A process-local lock serializes all API reads and writes, including settlement validation and insertion. Run one Uvicorn worker: this is a local single-workspace application, not a multi-worker service. It has no authentication, binds to localhost, and records settlements without transferring money. CORS allows only the two local Vite development origins.
+
+For an optional populated demonstration, after migrations and **before adding any groups**, run:
+
+```sh
+.venv/bin/python -m backend.scripts.seed_demo
+```
+
+This explicit command creates one Almaty weekend group in KZT, four members, seven realistic expenses across all three split methods, and a partial settlement. It refuses a workspace with any existing group and never runs automatically. Stop the API while seeding; restart or refresh the frontend afterwards.
+
+Dependency maintenance: `requirements.txt` declares acceptable direct dependency ranges; `requirements-lock.txt` pins the validated project dependency closure. To update intentionally, resolve the range input in a fresh virtual environment, regenerate exact direct/transitive pins, and rerun backend, contract and browser verification before committing the lock. The current lock was derived from installed distribution dependency metadata, excluding unrelated formatter packages.

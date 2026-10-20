@@ -26,3 +26,39 @@ test('display preference updates profile and survives navigation and refresh',as
  await page.goto('/settings');await page.getByLabel('Display name').fill('QA Person');await page.getByRole('button',{name:'Save preferences'}).click();await expect(page.locator('.profile')).toContainText('QA Person');await expect(page.locator('.profile .avatar')).toContainText('QP');await navigate(page,'Overview');await expect(page.locator('.profile')).toContainText('QA Person');await page.reload();await expect(page.locator('.profile')).toContainText('QA Person');await navigate(page,'Settings');await page.getByLabel('Display name').fill('   ');await expect(page.getByRole('button',{name:'Save preferences'})).toBeDisabled();await expect(page.locator('.profile')).toContainText('QA Person');
 });
 test('mobile scroll regression on every screen',async({page})=>{await page.setViewportSize({width:390,height:844});for(const route of ['/','/groups','/groups/g1','/expenses','/balances','/settlements','/analytics','/settings']){await page.goto(route);await expect(page.locator('h1')).toBeVisible();await page.waitForTimeout(300);expect(await page.evaluate(()=>document.documentElement.scrollWidth),route).toBeLessThanOrEqual(390);}await page.goto('/expenses');await expect(page.getByRole('columnheader',{name:'Actions',exact:true})).toHaveCount(1);const scroll=page.locator('.table-scroll').first();expect(await scroll.evaluate(e=>{e.scrollLeft=10000;return e.scrollLeft})).toBeGreaterThan(0);await expect(page.getByRole('button',{name:'Edit Airport transfers'})).toBeVisible();});
+test('direct group link and reload keep the requested non-first group', async ({page}) => {
+ await page.goto('/groups/g2');
+ await expect(page.getByRole('heading', {name:'The apartment', exact:true})).toBeVisible();
+ await expect(page.getByLabel('Active group')).toHaveValue('g2');
+ await page.reload();
+ await expect(page.getByRole('heading', {name:'The apartment', exact:true})).toBeVisible();
+ await expect(page.getByLabel('Active group')).toHaveValue('g2');
+ await page.getByLabel('Active group').selectOption('g3');await expect(page).toHaveURL(/\/groups\/g3$/);await expect(page.getByRole('heading',{name:'Friday dinner club',exact:true})).toBeVisible();
+ await page.goBack();await expect(page).toHaveURL(/\/groups\/g2$/);await expect(page.getByRole('heading',{name:'The apartment',exact:true})).toBeVisible();
+ await page.goForward();await expect(page.getByRole('heading',{name:'Friday dinner club',exact:true})).toBeVisible();
+ await page.goto('/groups/missing');await expect(page).toHaveURL(/\/groups\/g1$/);await expect(page.getByRole('heading',{name:'Lisbon getaway',exact:true})).toBeVisible();
+});
+test('keyboard dialog traps focus and restores its trigger on Escape', async ({page}) => {
+ await page.goto('/groups');
+ const trigger=page.getByRole('button',{name:'New group',exact:true});
+ await trigger.focus();await page.keyboard.press('Enter');
+ const dialog=page.getByRole('dialog');await expect(dialog).toBeVisible();
+ await expect(page.getByLabel('Group name')).toBeFocused();
+ for(let i=0;i<10;i++) {await page.keyboard.press('Tab');expect(await dialog.evaluate(e=>e.contains(document.activeElement))).toBeTruthy();}
+ await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(trigger).toBeFocused();
+});
+test('small semantic dashboard and dialog labels meet readable text contrast', async ({page}) => {
+ const check=async(selector:string)=>{
+  const samples=await page.locator(selector).evaluateAll(elements=>elements.filter(el=>{const b=el.getBoundingClientRect();return b.width>1&&b.height>1;}).map(el=>{
+   const color=getComputedStyle(el).color;let p:Element|null=el;let background='rgb(255, 255, 255)';while(p){const c=getComputedStyle(p).backgroundColor;if(c!=='rgba(0, 0, 0, 0)'&&c!=='transparent'){background=c;break;}p=p.parentElement;}
+   const lum=(value:string)=>{const c=value.match(/[\d.]+/g)!.slice(0,3).map(Number).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);return c[0]*.2126+c[1]*.7152+c[2]*.0722;};const a=lum(color),b=lum(background);return {text:el.textContent?.trim(),color,background,ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};
+  }));
+  for(const sample of samples)expect(sample.ratio,JSON.stringify(sample)).toBeGreaterThanOrEqual(4.5);
+  return samples;
+ };
+ await page.goto('/');await expect(page.locator('.page-subtitle')).toBeVisible();
+ const dashboard=await check('.page-subtitle,.stat-label,.stat-detail,.workspace small,.sidebar-note p,.profile small,th');
+ await page.getByRole('button',{name:'Add expense',exact:true}).first().click();await expect(page.getByRole('dialog')).toBeVisible();
+ const modal=await check('.dialog-heading p,.field small');
+ console.log('Semantic text contrast samples',JSON.stringify([...dashboard,...modal]));
+});

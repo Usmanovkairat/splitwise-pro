@@ -233,3 +233,31 @@ def test_actual_uvicorn_process_restart_retains_ledger(tmp_path):
     finally:
         process.terminate()
         process.wait(timeout=5)
+
+
+def test_explicit_demo_seed_refuses_existing_workspace(database):
+    from backend.scripts.seed_demo import seed_demo
+
+    engine, _ = database
+    repo = SQLAlchemyRepository(engine)
+    group = seed_demo(repo)
+    service = Service(repo)
+    assert len(repo.list("groups")) == 1
+    assert len(repo.list("members", group["id"])) == 4
+    assert len(repo.list("expenses", group["id"])) == 7
+    assert len(repo.list("settlements", group["id"])) == 1
+    assert {e["split_type"] for e in repo.list("expenses", group["id"])} == {
+        "equal",
+        "exact",
+        "percentage",
+    }
+    assert (
+        sum(row["net_minor"] for row in service.balances(group["id"])["members"]) == 0
+    )
+    before = {
+        kind: repo.list(kind)
+        for kind in ("groups", "members", "expenses", "settlements")
+    }
+    with pytest.raises(ValueError, match="empty workspace"):
+        seed_demo(repo)
+    assert {kind: repo.list(kind) for kind in before} == before

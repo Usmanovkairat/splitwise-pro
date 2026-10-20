@@ -7,3 +7,5 @@ Full issue remains pending SQLite/restart and integrated dialog verification. Mo
 Frontend segment PASS: independent `npm test` after Unicode case-folding change:10 tests passed,2 files,3.00s. Reviewed mock regression: trimmed Straße then STRASSE/straße rejected without extra member; other group STRASSE accepted; whitespace rejected. Unicode case folding dependency is pinned in package lock.
 
 SQLite/restart segment PASS: independent fresh migrated temporary database created Straße, engine disposed/reconstructed against same file, padded STRASSE422 and original member ID/list retained. Full backend suite53 passed. Integrated active-dialog duplicate segment pending stage5.
+
+Integrated segment PASS: real API/SQLite browser submitted paddedALICE after Alice; active-dialog accessible alert visible, input preserved, member ledger remains3. Integrated lifecycle passed6.9s. All PM-groomed memory/mock/SQLite/restart/integrated segments now verified; full issue37 PASS.
