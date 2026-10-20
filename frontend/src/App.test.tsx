@@ -2,13 +2,16 @@ vi.mock("./services", async () => ({
   service: (await import("./services/mockService")).createMockService(),
 }));
 import { afterEach, describe, it, expect, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 afterEach(cleanup);
-function mount(path = "/groups") {
+function LocationProbe() {
+  return <output data-testid="current-path">{useLocation().pathname}</output>;
+}
+function mount(path = "/groups", inspectPath = false) {
   return render(
     <QueryClientProvider
       client={
@@ -17,11 +20,50 @@ function mount(path = "/groups") {
     >
       <MemoryRouter initialEntries={[path]}>
         <App />
+        {inspectPath && <LocationProbe />}
       </MemoryRouter>
     </QueryClientProvider>,
   );
 }
 describe("workspace forms", () => {
+  it("opens a non-first group from its URL after asynchronous loading (#39)", async () => {
+    mount("/groups/g2", true);
+    expect(
+      await screen.findByRole("heading", { name: "The apartment" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Active group")).toHaveValue("g2");
+    expect(screen.getByTestId("current-path")).toHaveTextContent("/groups/g2");
+    expect(
+      screen.queryByRole("heading", { name: "Lisbon getaway" }),
+    ).not.toBeInTheDocument();
+  });
+  it("replaces a missing group detail URL with the first existing group (#39)", async () => {
+    mount("/groups/missing", true);
+    expect(
+      await screen.findByRole("heading", { name: "Lisbon getaway" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Active group")).toHaveValue("g1");
+    await waitFor(() =>
+      expect(screen.getByTestId("current-path")).toHaveTextContent(
+        "/groups/g1",
+      ),
+    );
+  });
+  it("returns a missing detail route to the empty group list when no groups remain (#39)", async () => {
+    const { service } = await import("./services");
+    const listing = vi.spyOn(service, "listGroups").mockResolvedValue([]);
+    mount("/groups/deleted", true);
+    await waitFor(() =>
+      expect(screen.getByTestId("current-path")).toHaveTextContent(
+        /^\/groups$/,
+      ),
+    );
+    expect(
+      screen.getByRole("heading", { name: "My groups" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New group" })).toBeEnabled();
+    listing.mockRestore();
+  });
   it("renames a group using only editable fields (#38)", async () => {
     const { service } = await import("./services");
     const original = (await service.listGroups()).find(

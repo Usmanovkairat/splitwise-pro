@@ -156,12 +156,23 @@ function App() {
     queryFn: () => service.listGroups(),
   });
   const groups = groupsQuery.data || [];
+  const requestedGroupId = location.pathname.match(/^\/groups\/([^/]+)$/)?.[1];
+  const requestedGroup = groups.find((g) => g.id === requestedGroupId);
   useEffect(() => {
-    const requested = location.pathname.match(/^\/groups\/([^/]+)$/)?.[1];
-    if (requested && groupsQuery.data?.some((g) => g.id === requested))
-      setSelected(requested);
-  }, [location.pathname, groupsQuery.data]);
-  const group = groups.find((g) => g.id === selected) || groups[0];
+    if (requestedGroupId && groupsQuery.isSuccess && !requestedGroup) {
+      navigate(groups[0] ? `/groups/${groups[0].id}` : "/groups", {
+        replace: true,
+      });
+    }
+  }, [
+    requestedGroupId,
+    requestedGroup,
+    groupsQuery.isSuccess,
+    groups,
+    navigate,
+  ]);
+  const group =
+    requestedGroup || groups.find((g) => g.id === selected) || groups[0];
   const id = group?.id || "";
   const currency = group?.currency || "USD";
   useEffect(() => {
