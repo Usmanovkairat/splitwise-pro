@@ -49,6 +49,31 @@ describe("typed API adapter", () => {
       createApiService("/api", fetcher).deleteGroup("g1"),
     ).resolves.toBeUndefined();
   });
+  it("keeps creation currency but strips runtime extra fields from group updates (#38)", async () => {
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(json({})));
+    const api = createApiService("/api", fetcher);
+    const formData = {
+      name: "Almaty weekend",
+      description: "Shared travel costs",
+      currency: "KZT",
+    };
+    await api.createGroup(formData);
+    await api.updateGroup("g1", formData);
+    expect(
+      fetcher.mock.calls.map(([url, options]) => ({
+        url,
+        method: options.method,
+        data: JSON.parse(options.body),
+      })),
+    ).toEqual([
+      { url: "/api/groups", method: "POST", data: formData },
+      {
+        url: "/api/groups/g1",
+        method: "PUT",
+        data: { name: formData.name, description: formData.description },
+      },
+    ]);
+  });
   it("preserves actionable domain validation errors and status", async () => {
     const fetcher = vi
       .fn()

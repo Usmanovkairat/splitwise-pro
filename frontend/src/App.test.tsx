@@ -22,6 +22,45 @@ function mount(path = "/groups") {
   );
 }
 describe("workspace forms", () => {
+  it("renames a group using only editable fields (#38)", async () => {
+    const { service } = await import("./services");
+    const original = (await service.listGroups()).find(
+      (group) => group.id === "g1",
+    )!;
+    const update = vi.spyOn(service, "updateGroup");
+    const user = userEvent.setup();
+    mount("/groups/g1");
+    await screen.findByText("The people behind the plans");
+    await user.click(screen.getByRole("button", { name: "Edit group" }));
+    expect(await screen.findByLabelText(/Group currency/)).toBeDisabled();
+    await user.clear(screen.getByLabelText("Group name"));
+    await user.type(screen.getByLabelText("Group name"), "Renamed home");
+    await user.clear(screen.getByLabelText("A little description"));
+    await user.type(
+      screen.getByLabelText("A little description"),
+      "Updated details",
+    );
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(
+      await screen.findByRole("heading", { name: "Renamed home" }),
+    ).toBeInTheDocument();
+    expect(update).toHaveBeenCalledWith("g1", {
+      name: "Renamed home",
+      description: "Updated details",
+    });
+    expect(
+      (await service.listGroups()).find((group) => group.id === "g1"),
+    ).toMatchObject({
+      name: "Renamed home",
+      description: "Updated details",
+      currency: "USD",
+    });
+    update.mockRestore();
+    await service.updateGroup("g1", {
+      name: original.name,
+      description: original.description,
+    });
+  });
   it("renders groups and creates a named group through mock service", async () => {
     const user = userEvent.setup();
     mount();

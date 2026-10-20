@@ -1248,7 +1248,10 @@ function App() {
           onSubmit={(data) =>
             act(() =>
               modal === "rename"
-                ? service.updateGroup(id, data)
+                ? service.updateGroup(id, {
+                    name: data.name,
+                    description: data.description,
+                  })
                 : service.createGroup(data),
             )
           }

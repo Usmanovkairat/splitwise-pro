@@ -82,7 +82,11 @@ export function createApiService(
   return {
     listGroups: () => request<Group[]>("/groups"),
     createGroup: (data) => request<Group>("/groups", "POST", data),
-    updateGroup: (id, data) => request<Group>(group(id), "PUT", data),
+    updateGroup: (id, data) =>
+      request<Group>(group(id), "PUT", {
+        name: data.name,
+        description: data.description,
+      }),
     deleteGroup: (id) => request<void>(group(id), "DELETE"),
     listMembers: (id) => request<Member[]>(`${group(id)}/members`),
     addMember: (id, name) =>
