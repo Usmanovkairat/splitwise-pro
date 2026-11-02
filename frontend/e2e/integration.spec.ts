@@ -329,6 +329,9 @@ test("search and category filtering combine without changing totals", async ({
   await seed(request, ledger, "Dinner", "Food & drinks");
   await seed(request, ledger, "Bus ride", "Travel");
   await visit(page, ledger, "Expenses");
+  const totalsBefore = await (
+    await request.get(`${ledger.url}/analytics`)
+  ).json();
   await page.getByLabel("Search expenses").fill("DIN");
   await expect(page.getByRole("button", { name: "Edit Dinner" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Edit Bus ride" })).toHaveCount(
@@ -349,6 +352,34 @@ test("search and category filtering combine without changing totals", async ({
   await expect(
     page.getByRole("button", { name: /^Edit (Dinner|Bus ride)$/ }),
   ).toHaveCount(2);
+  expect(await (await request.get(`${ledger.url}/analytics`)).json()).toEqual(
+    totalsBefore,
+  );
+  // Mutations must continue to work with an active filter, not only after reset.
+  await page.getByLabel("Filter by category").selectOption("Travel");
+  await page.getByRole("button", { name: "Edit Bus ride" }).click();
+  await page.getByLabel("What was it for?").fill("Bus tickets");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Edit Bus tickets" }),
+  ).toBeVisible();
+  expect(
+    (await (await request.get(`${ledger.url}/expenses`)).json()).some(
+      (expense: { description: string }) =>
+        expense.description === "Bus tickets",
+    ),
+  ).toBeTruthy();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Delete Bus tickets" }).click();
+  await expect(
+    page.getByText("No matching expenses", { exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("Filter by category").selectOption("");
+  await expect(page.getByRole("button", { name: "Edit Dinner" })).toBeVisible();
+  const remaining = await (await request.get(`${ledger.url}/expenses`)).json();
+  expect(remaining).toHaveLength(1);
+  expect(remaining[0].description).toBe("Dinner");
 });
 test("form validation rejects invalid money and incorrect split totals", async ({
   page,
