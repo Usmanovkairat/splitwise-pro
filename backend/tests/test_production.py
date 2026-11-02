@@ -42,3 +42,21 @@ def test_readiness_refuses_unmigrated_database(tmp_path):
             assert response.json() == {'status': 'unavailable'}
     finally:
         engine.dispose()
+
+
+def test_health_response_matches_source_contract(tmp_path):
+    import yaml
+    from jsonschema import validate
+    from backend.app.database import make_engine
+    from backend.app.sql_repository import SQLAlchemyRepository
+    contract = yaml.safe_load(Path('openapi.yml').read_text())
+    with TestClient(create_app(storage='memory')) as client:
+        validate(client.get('/api/health').json(), contract['components']['schemas']['Health'])
+    engine = make_engine(f'sqlite:///{tmp_path / "contract.db"}')
+    try:
+        with TestClient(create_app(SQLAlchemyRepository(engine))) as client:
+            response = client.get('/api/health')
+            assert response.status_code == 503
+            validate(response.json(), contract['paths']['/api/health']['get']['responses']['503']['content']['application/json']['schema'])
+    finally:
+        engine.dispose()

@@ -110,7 +110,10 @@ jobs:
         with:
           terraform_version: '1.13.4'
       - name: Validate shell scripts
-        run: bash -n deployment/start.sh deployment/deploy-gcp.sh infra/gcp/startup.sh.tftpl
+        run: |
+          for script in deployment/start.sh deployment/deploy-gcp.sh infra/gcp/startup.sh.tftpl; do
+            bash -n "$script"
+          done
       - name: Check Terraform format
         working-directory: infra/gcp
         run: terraform fmt -check

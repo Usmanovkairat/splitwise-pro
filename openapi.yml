@@ -31,6 +31,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Health'
+        '503':
+          description: Database is unavailable or schema is not migrated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [unavailable]
+                required: [status]
+                additionalProperties: false
         '404':
           description: Resource not found
           content:
@@ -1117,7 +1129,11 @@ components:
           enum:
           - memory
           - sqlite
+        database:
+          type: string
+          enum: [memory, sqlite, postgresql]
       required:
       - status
       - storage
+      - database
       additionalProperties: false
