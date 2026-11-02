@@ -37,3 +37,20 @@ Python 3.12.14 and Node 24.22.1 were available. Python and frontend dependencies
 An attempt to obtain a native PostgreSQL runtime encountered a truncated package and a process-identity restriction: this container runs as UID 0 without setuid/setgid capabilities, while PostgreSQL requires a non-root process. `runuser` failed with `cannot set groups: Operation not permitted`. No escalation or cloud resource was used.
 
 The test run emitted a Starlette/httpx deprecation warning. It did not fail the backend tests. No issues were closed by this QA agent, and no cloud deployment or financial resource provisioning was performed.
+
+## Independent GCP IaC/CD review
+
+Reviewed `infra/gcp/`, `deployment/deploy-gcp.sh` and `.github/workflows/deploy.yml` without cloud credentials or provisioning.
+
+Executed checks:
+
+- `bash -n infra/gcp/startup.sh.tftpl deployment/deploy-gcp.sh`: PASS.
+- Terraform 1.13.4 `fmt -check`: PASS.
+- Terraform `validate`: NOT PASSED. Provider schema loading failed before validation: Google provider 6.50.0 did not negotiate its local plugin handshake (`Failed to read any lines from plugin's stdout`). The orchestrator separately observed a local Unix-socket restriction. This is an environment blocker, not proof that the provider configuration is valid.
+- Deployment workflow YAML parses; explicit successful-main, same-repository, opt-in and production-environment gates are present. Deploy concurrency is serialized and the checked-out source is the verified SHA; an obsolete main SHA is rejected before publishing.
+- Rendered startup Compose YAML parses after template substitutions. It selects the provided immutable image with no build override, keeps PostgreSQL credentials as Compose environment interpolation, exposes only localhost application port, leaves database unpublished and binds data to the attached persistent disk.
+- Deterministic mocked release-script success/failure checks: PASS. The script pulls before stopping the app, creates a mode-0600 database dump, updates only the app image, and on failed rollout restores the exact previous Compose file, attempts restart and exits nonzero. Docker/curl commands were mocks; this does not verify a live rollout, schema compatibility, backup restorability or actual container readiness.
+
+The bootstrap preserves an existing Compose release and `.env` on reboot. Deployment takes a lock; rollback changes the image/configuration without automatically overwriting or downgrading database contents. A backup on the same data disk is not off-VM disaster recovery. Schema-incompatible migrations still require a reviewed restore. No public HTTP firewall rule exists; app access requires the protected tunnel. Owner billing authorization defaults false; a budget alert is optional and is not a spending cap. The protected disk deliberately blocks normal destruction until an explicit deletion decision.
+
+Remaining account-side requirements include provider schema validation in a normal runtime, reviewed plan, actual cost approval, IAM/WIF/environment setup, anonymously pullable registry image, cloud apply, tunnel access and live deployment/rollback/restore tests. No cloud operation ran during this review. Hosted CI status is tracked separately by the orchestrator; this section does not assert a completed Actions run.

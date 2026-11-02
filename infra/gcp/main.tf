@@ -156,9 +156,8 @@ resource "google_billing_budget" "monthly" {
   threshold_rules {
     threshold_percent = 1.0
   }
-  all_updates_rule {
-    disable_default_iam_recipients = false
-  }
+  # Omit all_updates_rule: default IAM email recipients receive threshold alerts.
+  # Google provider 6.50 requires a real channel/topic if that optional block is set.
   depends_on = [terraform_data.authorization]
 }
 

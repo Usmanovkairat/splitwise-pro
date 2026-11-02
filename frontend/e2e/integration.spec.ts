@@ -434,7 +434,17 @@ test("loading and recoverable HTTP error states", async ({ page, ledger }) => {
 test("responsive mobile navigation and keyboard dialog dismissal", async ({
   page,
   ledger,
+  request,
 }) => {
+  // A valid maximum-length name must wrap rather than widen the page.
+  const longName = "G".repeat(80);
+  expect(
+    (
+      await request.put(ledger.url, {
+        data: { name: longName, description: "Long group name regression" },
+      })
+    ).ok(),
+  ).toBeTruthy();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/groups/${ledger.id}`);
   await expect(
@@ -443,6 +453,9 @@ test("responsive mobile navigation and keyboard dialog dismissal", async ({
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth),
   ).toBeLessThanOrEqual(390);
+  await expect(
+    page.getByRole("heading", { name: longName, exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Open navigation" }).click();
   await page.getByRole("link", { name: "Expenses", exact: true }).click();
   await expect(
