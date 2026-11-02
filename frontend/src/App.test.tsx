@@ -211,3 +211,63 @@ describe("API lifecycle presentation", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("expense discovery #55", () => {
+  it("combines case-insensitive search and category filters and recovers from no results", async () => {
+    const { service } = await import("./services");
+    const expenses = vi.spyOn(service, "listExpenses").mockResolvedValue([
+      {
+        id: "search-food",
+        group_id: "g1",
+        description: "Dinner with friends",
+        amount_minor: 1200,
+        payer_id: "m1",
+        category: "Food & drinks",
+        date: "2026-10-20",
+        split_type: "equal",
+        split_values: { m1: 1 },
+        shares: [{ member_id: "m1", amount_minor: 1200 }],
+      },
+      {
+        id: "search-travel",
+        group_id: "g1",
+        description: "Bus tickets",
+        amount_minor: 300,
+        payer_id: "m1",
+        category: "Travel",
+        date: "2026-10-20",
+        split_type: "equal",
+        split_values: { m1: 1 },
+        shares: [{ member_id: "m1", amount_minor: 300 }],
+      },
+    ]);
+    try {
+      const user = userEvent.setup();
+      mount("/expenses");
+      await screen.findByRole("button", { name: "Edit Dinner with friends" });
+      await user.type(screen.getByLabelText("Search expenses"), "DINNER");
+      expect(
+        screen.getByRole("button", { name: "Edit Dinner with friends" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Edit Bus tickets" }),
+      ).not.toBeInTheDocument();
+      await user.selectOptions(
+        screen.getByLabelText("Filter by category"),
+        "Travel",
+      );
+      expect(screen.getByText("No matching expenses")).toBeInTheDocument();
+      await user.clear(screen.getByLabelText("Search expenses"));
+      expect(
+        screen.getByRole("button", { name: "Edit Bus tickets" }),
+      ).toBeInTheDocument();
+      await user.selectOptions(screen.getByLabelText("Filter by category"), "");
+      expect(
+        screen.getByRole("button", { name: "Edit Dinner with friends" }),
+      ).toBeInTheDocument();
+      expect(screen.getByText(/in total/)).toHaveTextContent("$15.00");
+    } finally {
+      expenses.mockRestore();
+    }
+  });
+});

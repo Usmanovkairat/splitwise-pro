@@ -1,5 +1,11 @@
 # SplitWise Pro
 
+## Final verified implementation — 2026-11-02
+
+Independent QA verified commit `23407fba510e13fbac195a25ee9c5f0868bbdaab` in successful [Actions run 41452285813](https://github.com/Usmanovkairat/splitwise-pro/actions/runs/41452285813): **68 backend tests, 28 frontend tests, 8 mock browser tests, and 22 browser scenarios each against SQLite, PostgreSQL and the actual Docker Compose image passed**. Full-ledger recreation retained groups, members, expenses/shares, partial settlements, balances and analytics. Both verification and infrastructure jobs passed; Terraform schema validation passed. The final source includes separately named expense creation, navigation and persistence acceptance scenarios.
+
+The existing application is preserved; additions include expense search/category filters, safe PostgreSQL transfer, production readiness checks, full-stack Compose, granular E2E, CI, protected GCP Terraform and default-disabled OIDC CD. Independent issue closure is approved for #42–44, #48–68, #70, #72 and #73; #69 was already verified. Cloud #45–47 remain open. No first-provider deployment, GCP apply, live CD, public HTTPS endpoint or cloud URL is claimed. See [cloud account steps](deployment/CLOUD.md) and [full QA evidence](_docs/qa/deployment.md).
+
 A local shared expense workspace for roommates, travel groups and events. Record equal, exact or percentage splits, inspect balances, record partial repayments and explore spending analytics. The app records settlements; it does not move money.
 
 ![SplitWise Pro desktop dashboard](_docs/screenshots/integrated-desktop.png)
@@ -58,6 +64,7 @@ On Windows, replace `.venv/bin/python` with `.\.venv\Scripts\python.exe`. This e
 - Create, edit and delete expenses; select payer, participants, category and date.
 - Split equally, by exact amounts or percentages; inspect debt balances and deterministic repayment suggestions.
 - Record partial settlements and review history; view category, timeline and individual contribution charts.
+- Search expense descriptions and combine category filters, including a no-results state.
 - Use responsive desktop/mobile views with validation, empty, loading and error states.
 - Retain records through page refresh and backend restart using SQLAlchemy, SQLite and Alembic migrations.
 
@@ -92,6 +99,16 @@ React, TypeScript, Vite, Tailwind, Radix/shadcn-style components, React Router, 
 
 Use `VITE_SERVICE_MODE=mock` when starting Vite to demonstrate the frontend mock; the default is the real API. `VITE_API_BASE_URL` optionally overrides `/api`. Backend `DATABASE_URL` overrides the SQLite URL; `SPLITWISE_STORAGE=memory` selects volatile storage. See [backend instructions](backend/README.md) for details.
 
-The application has no authentication and is intended for one local workspace. Bind it to localhost and run a single backend worker: the settlement lock is process-local. Cloud hosting, multi-user access, bank connections, exports and currency conversion remain outside the MVP. The production frontend build is verified, but a production hosting configuration is not included.
+The application has no authentication and is intended for one local workspace. Bind it to localhost and run a single backend worker: the settlement lock is process-local. Multi-user access, bank connections, exports and currency conversion remain outside the MVP. Cloud configuration keeps this workspace protected behind an authenticated SSH tunnel. The deployment branch adds full-stack Docker/Compose, PostgreSQL transfer and protected GCP infrastructure configuration. See [container and data migration instructions](deployment/README.md) and [GCP configuration](infra/gcp/README.md). No verified cloud URL is available.
 
 Read [the plan](_docs/plan.md), [architecture](_docs/architecture.md), [design system](_docs/design-system.md), [iteration record](_docs/iterations.md), [user testing](_docs/user-testing.md) and [genuine brainstorming record](chat-brainstorm.md). [Mobile screenshot](_docs/screenshots/integrated-mobile.png). Development uses real [GitHub Issues](https://github.com/Usmanovkairat/splitwise-pro/issues) and independent QA handoffs described in [AGENTS.md](AGENTS.md).
+
+## Container and deployment assignment
+
+Use `feature/container-postgres-deployment` (PR [#71](https://github.com/Usmanovkairat/splitwise-pro/pull/71)) for the PostgreSQL/container work. Copy `.env.example` to `.env`, set a strong URL-safe password, and run `docker compose up --build --wait`. The app is at http://127.0.0.1:8000; PostgreSQL data persists in a named volume. Read [the transfer procedure](deployment/README.md) before switching an existing SQLite ledger.
+
+The migration utility preserves a protected SQLite backup, requires an empty migrated PostgreSQL target, copies in a transaction, compares full rows and reconciles balances. New browser coverage consists of 22 independent real-API scenarios with isolated fixtures, also runnable against Compose through `QA_BASE_URL`. GitHub Actions includes PostgreSQL and Docker verification; inspect the latest [Actions results](https://github.com/Usmanovkairat/splitwise-pro/actions) rather than relying on historical Part II results.
+
+Current local verification: backend **65 passed / 3 PostgreSQL-dependent skips**, frontend **28 passed**, contract and production frontend build passed. Local browser execution was blocked by a failed Chromium download; Docker/PostgreSQL execution was unavailable locally. See [independent evidence](_docs/qa/deployment.md). Cloud provisioning requires the account and cost authorization steps in [GCP instructions](infra/gcp/README.md); no live deployment URL is claimed.
+
+Hosted verification of commit `41760bcb04c94dbe1d01697ad603a6887c58ed7c` completed successfully: [Actions run 41450722287](https://github.com/Usmanovkairat/splitwise-pro/actions/runs/41450722287). It ran **68 backend tests (including real PostgreSQL), 28 frontend tests, 8 mock browser tests and 20 browser scenarios each against SQLite, PostgreSQL and the actual Compose image**. Docker build/readiness, full-ledger container recreation and Terraform schema validation passed. The expanded 22-scenario suite adds distinct creation/persistence coverage; its exact hosted result is recorded separately in the QA evidence and latest PR checks. This is test evidence, not a cloud deployment claim.

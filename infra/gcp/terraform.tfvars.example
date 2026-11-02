@@ -1,0 +1,10 @@
+project_id      = "YOUR_EXISTING_PROJECT"
+region          = "us-central1"
+zone            = "us-central1-a"
+app_image       = "ghcr.io/YOUR_OWNER/splitwise-pro@sha256:REPLACE_WITH_ACTUAL_64_HEX_DIGEST"
+operator_members = ["user:YOUR_EMAIL@example.com"]
+# Do not change without explicit account-owner cost approval.
+authorize_billable_resources = false
+# Optional: set only an existing account, with permission to create budgets.
+# billing_account_id = "000000-000000-000000"
+monthly_budget_usd = 5
