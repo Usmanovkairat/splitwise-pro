@@ -1,5 +1,11 @@
 # SplitWise Pro
 
+## Final verified implementation — 2026-11-02
+
+Independent QA verified commit `23407fba510e13fbac195a25ee9c5f0868bbdaab` in successful [Actions run 41452285813](https://github.com/Usmanovkairat/splitwise-pro/actions/runs/41452285813): **68 backend tests, 28 frontend tests, 8 mock browser tests, and 22 browser scenarios each against SQLite, PostgreSQL and the actual Docker Compose image passed**. Full-ledger recreation retained groups, members, expenses/shares, partial settlements, balances and analytics. Both verification and infrastructure jobs passed; Terraform schema validation passed. The final source includes separately named expense creation, navigation and persistence acceptance scenarios.
+
+The existing application is preserved; additions include expense search/category filters, safe PostgreSQL transfer, production readiness checks, full-stack Compose, granular E2E, CI, protected GCP Terraform and default-disabled OIDC CD. Independent issue closure is approved for #42–44, #48–68, #70, #72 and #73; #69 was already verified. Cloud #45–47 remain open. No first-provider deployment, GCP apply, live CD, public HTTPS endpoint or cloud URL is claimed. See [cloud account steps](deployment/CLOUD.md) and [full QA evidence](_docs/qa/deployment.md).
+
 A local shared expense workspace for roommates, travel groups and events. Record equal, exact or percentage splits, inspect balances, record partial repayments and explore spending analytics. The app records settlements; it does not move money.
 
 ![SplitWise Pro desktop dashboard](_docs/screenshots/integrated-desktop.png)
