@@ -54,3 +54,25 @@ Executed checks:
 The bootstrap preserves an existing Compose release and `.env` on reboot. Deployment takes a lock; rollback changes the image/configuration without automatically overwriting or downgrading database contents. A backup on the same data disk is not off-VM disaster recovery. Schema-incompatible migrations still require a reviewed restore. No public HTTP firewall rule exists; app access requires the protected tunnel. Owner billing authorization defaults false; a budget alert is optional and is not a spending cap. The protected disk deliberately blocks normal destruction until an explicit deletion decision.
 
 Remaining account-side requirements include provider schema validation in a normal runtime, reviewed plan, actual cost approval, IAM/WIF/environment setup, anonymously pullable registry image, cloud apply, tunnel access and live deployment/rollback/restore tests. No cloud operation ran during this review. Hosted CI status is tracked separately by the orchestrator; this section does not assert a completed Actions run.
+
+## Hosted verification superseding local runtime blockers
+
+Independent QA retrieved GitHub Actions job metadata and decoded logs through the connected GitHub tools. Local absence of Docker/PostgreSQL/Chromium no longer means those checks are unexecuted everywhere; retain the local results above as their actual historical run.
+
+On commit `64baf` (run [41450332170](https://github.com/Usmanovkairat/splitwise-pro/actions/runs/41450332170), verification job `125293662168`), decoded logs independently confirm:
+
+- Backend: **67 passed**; frontend: **28 passed**.
+- Mock Playwright: **8 passed**.
+- Real SQLite browser suite: **20 passed**.
+- Real PostgreSQL browser suite: **20 passed**.
+- Multi-stage Docker image built; application and PostgreSQL containers became healthy.
+- Browser tests against the actual Compose image: **20 passed**.
+- Forced Compose service recreation: logged `PASS: groups, members, expense shares, partial settlement, balances and analytics survived Compose recreation`.
+
+The long-name 390px responsive regression is part of those 20 browser tests. The earlier failure was reproduced in hosted CI; the repaired maximum-length-name fixture passed SQLite, PostgreSQL and actual-image suites. These are real hosted checks, not the local mocked release tests.
+
+For commit `41760bcb04c94dbe1d01697ad603a6887c58ed7c`, push run [41450722287](https://github.com/Usmanovkairat/splitwise-pro/actions/runs/41450722287), independent QA retrieved infrastructure job `125294960276` logs. Terraform 1.13.4 initialized locked Google provider 6.50.0 and `terraform validate -no-color` printed **`Success! The configuration is valid.`** Shell syntax and Terraform formatting also passed. This verifies repair #73; it does not provision a budget or cloud instance. The local final backend run separately produced **65 passed, 3 PostgreSQL-only skips** after the health/OpenAPI contract regression was added.
+
+A later test-only commit `d2e770215c35daa83070061beaefb7643e3fd696` strengthens the existing search scenario by comparing unchanged analytics and editing/deleting an expense with an active filter. Its hosted result will be recorded after completion. No default-disabled continuous deployment or cloud endpoint is claimed.
+
+The complete `41760bcb04c94dbe1d01697ad603a6887c58ed7c` push run **41450722287 finished successfully**, with both jobs successful. Independent QA decoded verification job `125294960596`: **68 backend tests**, **28 frontend tests**, **8 mock browser tests**, **20 SQLite browser tests**, **20 PostgreSQL browser tests** and **20 actual Compose-image browser tests passed**; the full ledger recreation check printed PASS. This includes the health/OpenAPI contract test and the repaired mobile regression. Feature issue closure is held pending separately named persistence/baseline-expense scenarios requested by PM; the successful 20-scenario run is retained as its actual evidence, not relabeled as a 22-scenario run.

@@ -137,3 +137,11 @@ The actual executed test counts and hosted CI link are in `SUBMISSION.md` and `_
 ## 9. Integrity note
 
 This is a **clearer, edited record of the brainstorming and decision trail**. Only quoted user messages are represented as direct user speech. Candidate comparisons, design rationale and technical decisions are explicitly attributed to PM/AI analysis. No missing assistant messages, tool runs, user interviews or pre-implementation conversations have been invented.
+
+## 2026-11-02 deployment extension — current decision summary
+
+This section summarizes the actual current work; it is not a reconstructed dialogue. The attached user specification asked to audit the existing repository and deployment branch, preserve the existing application, migrate SQLite data safely, verify each feature with Playwright, containerise the complete stack and prepare cloud deployment without unauthorized costs.
+
+The audit retained React/Vite, FastAPI and SQLAlchemy. We chose a transactional, offline data transfer with a protected SQLite backup rather than replacing populated data. Real PostgreSQL and Compose verification ran in GitHub Actions because local Docker/PostgreSQL and Chromium installation were unavailable. A genuine mobile overflow failure and Terraform budget validation failure became issues #72 and #73, with repairs followed by hosted verification.
+
+Cloud configuration uses GCP Terraform and an IAM-authorized IAP SSH tunnel for the single workspace, since the existing product has no user authentication. Infrastructure provisioning and CD remain disabled pending account access and explicit owner authorization for possible costs. No cloud URL or historical brainstorming transcript was invented.

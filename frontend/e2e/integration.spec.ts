@@ -89,6 +89,13 @@ test("group creation starts an empty workspace and persists after refresh", asyn
   try {
     await page.goto("/groups");
     await page.getByRole("button", { name: "New group", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "Create group", exact: true }),
+    ).toBeDisabled();
+    await page.getByLabel("Group name").fill("   ");
+    await expect(
+      page.getByRole("button", { name: "Create group", exact: true }),
+    ).toBeDisabled();
     await page.getByLabel("Group name").fill("Browser-created group");
     await page.getByLabel("Group currency").selectOption("USD");
     await page
@@ -115,6 +122,10 @@ test("group editing persists the name and description", async ({
   await visit(page, ledger);
   await page.getByRole("button", { name: "Edit group", exact: true }).click();
   await expect(page.getByLabel("Group currency")).toBeDisabled();
+  await page.getByLabel("Group name").fill("   ");
+  await expect(
+    page.getByRole("button", { name: "Save changes", exact: true }),
+  ).toBeDisabled();
   await page.getByLabel("Group name").fill("Renamed isolated group");
   await page.getByLabel("A little description").fill("Updated description");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
@@ -189,6 +200,42 @@ for (const method of ["Equally", "Exact amounts", "Percentages"]) {
     await visit(page, ledger);
     const dialog = await expenseDialog(page, "Split test", "1.00");
     await dialog.getByRole("button", { name: method, exact: true }).click();
+    if (method === "Equally") {
+      for (const name of ["Alice", "Bob", "Carol"])
+        await dialog
+          .locator(".split-person")
+          .filter({ hasText: name })
+          .getByRole("checkbox")
+          .uncheck();
+      await dialog
+        .getByRole("button", { name: "Add expense", exact: true })
+        .click();
+      await expect(dialog.getByRole("alert")).toContainText(
+        "at least one participant",
+      );
+      for (const name of ["Alice", "Bob", "Carol"])
+        await dialog
+          .locator(".split-person")
+          .filter({ hasText: name })
+          .getByRole("checkbox")
+          .check();
+    } else {
+      for (const name of ["Alice", "Bob", "Carol"])
+        await dialog
+          .getByLabel(
+            `${name} ${method === "Exact amounts" ? "share" : "percentage"}`,
+          )
+          .fill("0");
+      await dialog
+        .getByRole("button", { name: "Add expense", exact: true })
+        .click();
+      await expect(dialog.getByRole("alert")).toContainText(
+        method === "Exact amounts" ? "Exact shares must equal" : "100%",
+      );
+      expect(
+        await (await request.get(`${ledger.url}/expenses`)).json(),
+      ).toEqual([]);
+    }
     if (method !== "Equally")
       for (const [i, name] of ["Alice", "Bob", "Carol"].entries())
         await dialog
@@ -231,6 +278,15 @@ test("expense editing updates browser and server", async ({
   await visit(page, ledger);
   await page.getByRole("button", { name: "Edit Dinner" }).click();
   await page.getByLabel("What was it for?").fill("Edited dinner");
+  await page.getByLabel("Amount (USD)", { exact: true }).fill("-1");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
+    "positive amount",
+  );
+  expect(
+    (await (await request.get(`${ledger.url}/expenses`)).json())[0]
+      .amount_minor,
+  ).toBe(1200);
   await page.getByLabel("Amount (USD)", { exact: true }).fill("15.00");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -492,12 +548,18 @@ test("responsive mobile navigation and keyboard dialog dismissal", async ({
   await expect(
     page.getByRole("heading", { name: "Expenses", exact: true }),
   ).toBeVisible();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(390);
   await page.getByRole("button", { name: "Add expense", exact: true }).click();
   await expect(page.getByLabel("What was it for?")).toBeFocused();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(390);
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
-test("navigation preserves selected group and refresh retains saved records", async ({
+test("navigation preserves selected group across workspace routes (#67)", async ({
   page,
   ledger,
   request,
@@ -518,4 +580,91 @@ test("navigation preserves selected group and refresh retains saved records", as
   await page.getByLabel("Active group").selectOption(ledger.id);
   await page.getByRole("link", { name: "Expenses", exact: true }).click();
   await expect(page.getByRole("button", { name: "Edit Dinner" })).toBeVisible();
+});
+
+test("expense creation saves selected payer, participants, category and date (#50)", async ({
+  page,
+  request,
+  ledger,
+}) => {
+  await visit(page, ledger);
+  const dialog = await expenseDialog(page, "Museum tickets", "9.00");
+  await dialog.getByLabel("Paid by").selectOption({ label: "Bob" });
+  await dialog
+    .getByLabel("Category", { exact: true })
+    .selectOption("Entertainment");
+  await dialog.getByLabel("Date", { exact: true }).fill("2026-10-18");
+  await dialog
+    .locator(".split-person")
+    .filter({ hasText: "Carol" })
+    .getByRole("checkbox")
+    .uncheck();
+  await dialog
+    .getByRole("button", { name: "Add expense", exact: true })
+    .click();
+  await expect(dialog).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Edit Museum tickets" }),
+  ).toBeVisible();
+  const expenses = await (await request.get(`${ledger.url}/expenses`)).json();
+  expect(expenses).toHaveLength(1);
+  expect(expenses[0]).toMatchObject({
+    description: "Museum tickets",
+    amount_minor: 900,
+    payer_id: ledger.members[1].id,
+    category: "Entertainment",
+    date: "2026-10-18",
+  });
+  expect(
+    expenses[0].shares
+      .map((share: { member_id: string }) => share.member_id)
+      .sort(),
+  ).toEqual([ledger.members[0].id, ledger.members[1].id].sort());
+});
+
+test("data persistence restores saved expenses and settlements in a reopened page (#68)", async ({
+  page,
+  request,
+  ledger,
+  context,
+}) => {
+  await seed(request, ledger);
+  await visit(page, ledger, "Settlements");
+  await page
+    .getByRole("button", { name: "Record payment", exact: true })
+    .first()
+    .click();
+  await page.getByLabel("Who paid?").selectOption({ label: "Bob" });
+  await page.getByLabel("Who received?").selectOption({ label: "Alice" });
+  await page.getByLabel("Payment amount (USD)").fill("1.00");
+  await page.getByLabel("Note (optional)").fill("Persisted repayment");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Record payment", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const reopened = await context.newPage();
+  try {
+    await visit(reopened, ledger, "Expenses");
+    await expect(
+      reopened.getByRole("button", { name: "Edit Dinner" }),
+    ).toBeVisible();
+    await reopened.reload();
+    await expect(
+      reopened.getByRole("button", { name: "Edit Dinner" }),
+    ).toBeVisible();
+    await reopened
+      .getByRole("link", { name: "Settlements", exact: true })
+      .click();
+    await expect(
+      reopened.getByRole("cell", { name: "Persisted repayment" }),
+    ).toBeVisible();
+    const balances = await (await request.get(`${ledger.url}/balances`)).json();
+    expect(
+      balances.members.find((member: { name: string }) => member.name === "Bob")
+        .net_minor,
+    ).toBe(-300);
+  } finally {
+    await reopened.close();
+  }
 });
