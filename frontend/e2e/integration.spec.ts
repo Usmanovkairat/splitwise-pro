@@ -591,7 +591,7 @@ test("expense creation saves selected payer, participants, category and date (#5
   const dialog = await expenseDialog(page, "Museum tickets", "9.00");
   await dialog.getByLabel("Paid by").selectOption({ label: "Bob" });
   await dialog
-    .getByLabel("Category", { exact: true })
+    .getByLabel("Category")
     .selectOption("Entertainment");
   await dialog.getByLabel("Date", { exact: true }).fill("2026-10-18");
   await dialog
