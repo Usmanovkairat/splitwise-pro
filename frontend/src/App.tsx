@@ -270,7 +270,7 @@ function App() {
     settlementQuery.error ||
     analyticsQuery.error;
   const groupIcons = [Plane, Home, UtensilsCrossed];
-  const expenseTable = (limit?: number) => (
+  const expenseTable = (limit?: number, rows: Expense[] = expenses) => (
     <div className="table-scroll">
       <table>
         <thead>
@@ -285,7 +285,7 @@ function App() {
           </tr>
         </thead>
         <tbody>
-          {expenses.slice(0, limit).map((e) => (
+          {rows.slice(0, limit).map((e) => (
             <tr key={e.id}>
               <td>
                 <div className="expense-description">
@@ -972,7 +972,7 @@ function App() {
                     element={
                       <ExpensePage
                         expenses={expenses}
-                        render={expenseTable}
+                        render={(rows) => expenseTable(undefined, rows)}
                         currency={currency}
                       />
                     }
@@ -1866,9 +1866,18 @@ function ExpensePage({
   currency,
 }: {
   expenses: Expense[];
-  render: () => ReactNode;
+  render: (rows: Expense[]) => ReactNode;
   currency: string;
 }) {
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("");
+  const filtered = expenses.filter(
+    (expense) =>
+      expense.description
+        .toLocaleLowerCase()
+        .includes(query.trim().toLocaleLowerCase()) &&
+      (!category || expense.category === category),
+  );
   return (
     <section className="card">
       <div className="card-heading">
@@ -1888,7 +1897,38 @@ function ExpensePage({
           Newest first
         </span>
       </div>
-      {render()}
+      <div className="expense-filters">
+        <Field label="Search expenses">
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search by description"
+          />
+        </Field>
+        <Field label="Filter by category">
+          <select
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+          >
+            <option value="">All categories</option>
+            {categories.map((item) => (
+              <option key={item}>{item}</option>
+            ))}
+          </select>
+        </Field>
+        <p role="status">
+          {filtered.length} of {expenses.length} expenses
+        </p>
+      </div>
+      {filtered.length || !expenses.length ? (
+        render(filtered)
+      ) : (
+        <Empty
+          title="No matching expenses"
+          description="Try another description or category."
+        />
+      )}
     </section>
   );
 }

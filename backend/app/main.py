@@ -50,7 +50,17 @@ def create_app(repository=None, storage=None):
 
     @app.get("/api/health")
     def health():
-        return dict(status="ok", storage=app.state.storage)
+        engine = getattr(app.state.repository, "engine", None)
+        if engine is not None:
+            from sqlalchemy import select
+            from .models import Group
+            try:
+                with engine.connect() as connection:
+                    connection.execute(select(Group.id).limit(1))
+            except Exception:
+                return JSONResponse(status_code=503, content={"status": "unavailable"})
+        return dict(status="ok", storage=app.state.storage,
+                    database=engine.dialect.name if engine is not None else "memory")
 
     @app.get("/api/groups")
     def groups():

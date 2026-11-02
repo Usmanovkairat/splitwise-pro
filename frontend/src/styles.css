@@ -1795,3 +1795,21 @@ tbody tr:hover {
     padding: 2px 18px 22px;
   }
 }
+
+.expense-filters {
+  display: flex;
+  align-items: end;
+  gap: 1rem;
+  padding: 0 1.5rem 1rem;
+  flex-wrap: wrap;
+}
+.expense-filters .field {
+  flex: 1;
+  min-width: 160px;
+  margin: 0;
+}
+.expense-filters p {
+  color: #66746b;
+  font-size: 0.85rem;
+  padding-bottom: 0.7rem;
+}
