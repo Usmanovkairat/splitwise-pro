@@ -1,0 +1,112 @@
+#!/bin/bash
+set -euo pipefail
+# No set -x: the generated database password must not appear in startup logs.
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y ca-certificates curl openssl e2fsprogs util-linux python3
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+printf '%s\n' 'deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable' > /etc/apt/sources.list.d/docker.list
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+systemctl enable --now docker
+
+device=/dev/disk/by-id/google-splitwise-data
+for attempt in $(seq 1 60); do
+  test -b "$device" && break
+  sleep 1
+done
+test -b "$device"
+# Format only a genuinely blank disk. Refuse unknown signatures.
+if ! blkid "$device" >/dev/null 2>&1; then
+  test -z "$(wipefs --noheadings --output TYPE "$device")"
+  mkfs.ext4 -F "$device"
+fi
+install -d -m 0700 /srv/splitwise
+mountpoint -q /srv/splitwise || mount "$device" /srv/splitwise
+uuid=$(blkid -s UUID -o value "$device")
+grep -q "UUID=$uuid " /etc/fstab || printf 'UUID=%s /srv/splitwise ext4 defaults,nofail 0 2\n' "$uuid" >> /etc/fstab
+install -d -m 0700 /srv/splitwise/config
+if ! test -s /srv/splitwise/config/.env; then
+  umask 077
+  printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 32)" > /srv/splitwise/config/.env
+fi
+chmod 0600 /srv/splitwise/config/.env
+# Keep the last healthy CD release on reboot and VM replacement.
+if ! test -s /srv/splitwise/config/compose.yaml; then
+cat > /srv/splitwise/config/compose.yaml <<'COMPOSE'
+name: splitwise
+services:
+  app:
+    image: ${app_image}
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://splitwise:$${POSTGRES_PASSWORD:?Missing database secret}@db:5432/splitwise
+      SPLITWISE_STORAGE: sqlite
+    depends_on:
+      db:
+        condition: service_healthy
+    init: true
+    restart: unless-stopped
+    mem_limit: 384m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5)"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: splitwise
+      POSTGRES_USER: splitwise
+      POSTGRES_PASSWORD: $${POSTGRES_PASSWORD:?Missing database secret}
+    volumes:
+      - /srv/splitwise/postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+    mem_limit: 384m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U splitwise -d splitwise"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+COMPOSE
+fi
+chmod 0600 /srv/splitwise/config/compose.yaml
+cat > /etc/systemd/system/splitwise.service <<'UNIT'
+[Unit]
+Description=SplitWise protected Compose workspace
+Requires=docker.service
+After=docker.service network-online.target
+RequiresMountsFor=/srv/splitwise
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/srv/splitwise/config
+ExecStart=/usr/bin/docker compose up -d --wait --wait-timeout 180
+ExecStop=/usr/bin/docker compose down
+TimeoutStartSec=300
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+systemctl enable splitwise.service
+# Initial bootstrap uses app_image; later boots preserve the last deployed digest.
+cd /srv/splitwise/config
+docker compose pull
+systemctl restart splitwise.service
+curl --fail --retry 12 --retry-delay 5 http://127.0.0.1:8000/api/health

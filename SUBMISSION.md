@@ -39,3 +39,13 @@ Independent QA records PASS for functional and browser acceptance, including pre
 Limitations: single local workspace, no authentication or real-money payments, no cloud deployment; one backend worker recommended. Settlement suggestions are deterministic but not proven globally minimum transfer count. A successful CI run does not certify all possible accessibility criteria.
 
 StudyFlow remains unchanged.
+
+## Test, Containerise and Deploy assignment — current branch
+
+Delivery is tracked in PR [#71](https://github.com/Usmanovkairat/splitwise-pro/pull/71), on `feature/container-postgres-deployment`. The older Part II results above are historical and do not establish PostgreSQL or cloud deployment success.
+
+Implemented: full-stack multi-stage image, PostgreSQL Compose with health/resource limits and persistent volume, safe transactional SQLite transfer with backup and reconciliation, 20 independent integrated Playwright scenarios, search/category filters, PostgreSQL/Compose CI, protected GCP Terraform and default-disabled OIDC deployment workflow. Required role documents and granular `e2e-test` issues are present.
+
+Local independent evidence: **64 backend tests passed / 3 PostgreSQL tests skipped; 28 frontend tests passed; contract and frontend build passed.** The real built SPA and readiness regressions passed outside Docker. Local Chromium download, PostgreSQL runtime and Docker runtime were unavailable. The hosted workflow must verify those checks; see [independent QA](_docs/qa/deployment.md) and the latest [Actions runs](https://github.com/Usmanovkairat/splitwise-pro/actions).
+
+No first-provider deployment, GCP resources or public HTTPS URL is claimed. Terraform formatting/init/template checks succeeded; provider schema validation was blocked locally by a Unix-socket restriction and is included in hosted CI. Account-dependent steps, provider compatibility, access controls, cost approval, secrets/variables, backup and cleanup are documented in [cloud readiness](deployment/CLOUD.md). Keep cloud and browser-dependent issues open until their actual acceptance checks succeed.

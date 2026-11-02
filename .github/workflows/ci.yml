@@ -100,3 +100,23 @@ jobs:
             frontend/playwright-report/
             compose.log
           if-no-files-found: ignore
+
+  infrastructure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.13.4'
+      - name: Validate shell scripts
+        run: bash -n deployment/start.sh deployment/deploy-gcp.sh infra/gcp/startup.sh.tftpl
+      - name: Check Terraform format
+        working-directory: infra/gcp
+        run: terraform fmt -check
+      - name: Initialize providers without account access
+        working-directory: infra/gcp
+        run: terraform init -backend=false -input=false -lockfile=readonly
+      - name: Validate infrastructure schema without provisioning
+        working-directory: infra/gcp
+        run: terraform validate -no-color
