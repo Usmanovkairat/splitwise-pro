@@ -226,6 +226,44 @@ jobs:
           python observability/smoke.py -- -f compose.yaml -f compose.observability.yaml -p splitwise-prod
       - name: Verify metrics, logs, traces, dashboard and alert-to-incident
         run: python observability/smoke.py --alert -- -f compose.yaml -f compose.observability.yaml -p splitwise-dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Capture the running Grafana dashboards
+        continue-on-error: true
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          node --input-type=module <<'JS'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch();
+          try {
+            for (const [environment, port, password] of [
+              ['development', 3000, process.env.GRAFANA_ADMIN_PASSWORD],
+              ['production-like', 3001, 'disposable-prod-grafana'],
+            ]) {
+              const context = await browser.newContext({viewport: {width: 1440, height: 1000}});
+              const page = await context.newPage();
+              await page.goto(`http://127.0.0.1:${port}/d/splitwise-observability`);
+              await page.locator('input[name=user]').fill('admin');
+              await page.locator('input[name=password]').fill(password);
+              await page.getByRole('button', {name: 'Log in', exact: true}).click();
+              await page.getByText('HTTP requests per second', {exact: true}).first().waitFor();
+              await page.screenshot({path: `../grafana-${environment}.png`, fullPage: true});
+              await context.close();
+            }
+          } finally {
+            await browser.close();
+          }
+          JS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: grafana-dashboards
+          path: grafana-*.png
+          if-no-files-found: ignore
       - name: Capture development stack logs on failure
         if: failure()
         run: docker compose -f compose.yaml -f compose.observability.yaml -p splitwise-dev logs --no-color

@@ -1,9 +1,0 @@
-[
-  "oncall/test_responder.py::IncidentTests::test_concurrent_retries_generate_one_report",
-  "oncall/test_responder.py::IncidentTests::test_environment_mismatch_is_ignored",
-  "oncall/test_responder.py::IncidentTests::test_fallback_missing_telemetry_and_restart_dedup",
-  "oncall/test_responder.py::IncidentTests::test_http_auth_invalid_and_valid",
-  "oncall/test_responder.py::IncidentTests::test_logs_traces_and_constrained_model_input",
-  "oncall/test_responder.py::IncidentTests::test_model_failure_falls_back",
-  "oncall/test_responder.py::IncidentTests::test_notification_destination_receives_only_the_report"
-]
