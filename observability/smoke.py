@@ -94,6 +94,21 @@ def verify(compose, simulate_alert):
     def total(metric):
         return sum(float(row["value"][1]) for row in prometheus(metric))
 
+    def correlated_trace(trace_id, route, *, query_span=None, error=False):
+        log_query = (
+            '{service_name="splitwise-pro"} '
+            f'| deployment_environment_name="{environment}" | trace_id="{trace_id}"'
+        )
+        if error:
+            log_query += ' | severity_text="ERROR" | status_code="500"'
+        logs = get("http://loki:3100/loki/api/v1/query_range?" + urlencode(
+            {"query": log_query, "limit": 5}
+        ))
+        if not logs["data"]["result"]:
+            return False
+        trace = json.dumps(get("http://tempo:3200/api/traces/" + trace_id))
+        return route in trace and (query_span is None or query_span in trace)
+
     eventually(lambda: prometheus('probe_success' + label))
     before = total(counter)
     trace_id = secrets.token_hex(16)
@@ -109,20 +124,7 @@ def verify(compose, simulate_alert):
         eventually(lambda: total(counter) > before)
         eventually(lambda: prometheus("splitwise_balance_calculation_duration_seconds_count" + label))
 
-        def correlated_trace():
-            log_query = (
-                '{service_name="splitwise-pro"} '
-                f'| deployment_environment_name="{environment}" | trace_id="{trace_id}"'
-            )
-            result = get("http://loki:3100/loki/api/v1/query_range?" + urlencode(
-                {"query": log_query, "limit": 5}
-            ))
-            if not result["data"]["result"]:
-                return False
-            trace = get("http://tempo:3200/api/traces/" + trace_id)
-            return "POST /api/groups" in json.dumps(trace) and "database.query" in json.dumps(trace)
-
-        eventually(correlated_trace)
+        eventually(lambda: correlated_trace(trace_id, "POST /api/groups", query_span="database.query"))
         print("PostgreSQL, Grafana, exported metrics, Loki logs and correlated Tempo traces verified")
     finally:
         assert http(group_url, "DELETE")[0] == 204, "Could not remove the test group"
@@ -141,9 +143,13 @@ def verify(compose, simulate_alert):
             run("stop", "db")
             code, _ = http("http://app:8000/api/health")
             assert code == 503, code
-            code, _ = http("http://app:8000/api/groups")
+            failed_trace_id = secrets.token_hex(16)
+            failed_traceparent = f"00-{failed_trace_id}-{secrets.token_hex(8)}-01"
+            code, _ = http("http://app:8000/api/groups", traceparent=failed_traceparent)
             assert code == 500, code
             eventually(lambda: total(errors) > baseline_errors)
+            eventually(lambda: correlated_trace(failed_trace_id, "GET /api/groups", error=True))
+            print("Loki ERROR log matched the failed HTTP 500 trace in Tempo")
 
             def report_received():
                 return any(row["incident_id"] not in previous
