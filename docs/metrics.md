@@ -4,7 +4,7 @@
 | --- | --- | --- |
 | `splitwise_http_requests_total` | Counter | One per API request excluding health probes, grouped by environment, operation and HTTP status |
 | `splitwise_http_request_duration_seconds` | Histogram | API latency in seconds, with the same grouping. Use the `_bucket` series for p50, p95 and p99 |
-| `splitwise_api_errors_total` | Counter | HTTP 5xx API responses |
+| `splitwise_api_errors_total` | Counter | HTTP 5xx API responses, grouped by environment |
 | `splitwise_groups_created_total` | Counter | Successful group creation with HTTP 201 |
 | `splitwise_expenses_created_total` | Counter | Successful expense creation with HTTP 201 |
 | `splitwise_settlements_created_total` | Counter | Successful settlement creation with HTTP 201 |

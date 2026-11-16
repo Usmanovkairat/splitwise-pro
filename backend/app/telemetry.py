@@ -26,6 +26,7 @@ PROBE_PATHS = {"/api/health", "/api/live"}
 class Telemetry:
     def __init__(self, environment, tracer_provider, meter_provider, logger_provider):
         self.environment = environment
+        self.environment_attributes = {"environment": environment}
         self.tracer = tracer_provider.get_tracer(SERVICE_NAME)
         self.logger = logger_provider.get_logger(SERVICE_NAME)
         meter = meter_provider.get_meter(SERVICE_NAME)
@@ -47,6 +48,9 @@ class Telemetry:
             for operation, name in DURATION_METRICS.items()
         }
         self.providers = (meter_provider, tracer_provider, logger_provider)
+        # Give each process a zero baseline before its first sparse event.
+        for counter in (self.errors, self.expense_failures, *self.creations.values()):
+            counter.add(0, self.environment_attributes)
 
     def shutdown(self):
         for provider in self.providers:
@@ -97,11 +101,11 @@ class Telemetry:
         self.requests.add(1, attributes)
         self.request_duration.record(duration, attributes)
         if status_code >= 500:
-            self.errors.add(1, attributes)
+            self.errors.add(1, self.environment_attributes)
             if operation == "add_expense":
-                self.expense_failures.add(1, {"environment": self.environment})
+                self.expense_failures.add(1, self.environment_attributes)
         if status_code == 201 and operation in self.creations:
-            self.creations[operation].add(1, {"environment": self.environment})
+            self.creations[operation].add(1, self.environment_attributes)
         if operation in self.durations:
             self.durations[operation].record(duration, {
                 "environment": self.environment,

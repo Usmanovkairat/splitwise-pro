@@ -38,6 +38,9 @@ def collector(monkeypatch):
         port = server.add_insecure_port("127.0.0.1:0")
         monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", f"http://127.0.0.1:{port}")
         monkeypatch.setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
+        monkeypatch.setenv("OTEL_TRACES_SAMPLER", "parentbased_always_on")
+        monkeypatch.setenv("OTEL_METRIC_EXPORT_INTERVAL", "60000")
+        monkeypatch.setenv("OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE", "cumulative")
         monkeypatch.setenv("SPLITWISE_ENVIRONMENT", "development")
         server.start()
         try:

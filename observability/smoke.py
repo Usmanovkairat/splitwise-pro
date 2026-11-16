@@ -3,6 +3,7 @@ import argparse
 import base64
 import json
 import os
+import secrets
 import subprocess
 import time
 from urllib.parse import urlencode
@@ -10,11 +11,13 @@ from urllib.parse import urlencode
 
 SMOKE_HTTP = """
 import json, sys, urllib.error, urllib.request
-url, method, payload = sys.argv[1:]
+url, method, payload, traceparent = sys.argv[1:]
 authorization = sys.stdin.read()
-headers = {"Content-Type": "application/json"}
+headers = {"Content-Type": "application/json", "Accept": "application/json"}
 if authorization:
     headers["Authorization"] = authorization
+if traceparent:
+    headers["traceparent"] = traceparent
 request = urllib.request.Request(url, payload.encode() if payload else None, headers, method=method)
 try:
     response = urllib.request.urlopen(request, timeout=8)
@@ -52,9 +55,9 @@ def verify(compose, simulate_alert):
     def run(*args, stdin=""):
         return subprocess.check_output([*compose, *args], text=True, timeout=30, input=stdin)
 
-    def http(url, method="GET", payload=None, authorization=""):
+    def http(url, method="GET", payload=None, authorization="", traceparent=""):
         output = run("exec", "-T", "app", "python", "-c", SMOKE_HTTP, url, method,
-                     json.dumps(payload) if payload is not None else "", stdin=authorization)
+                     json.dumps(payload) if payload is not None else "", traceparent, stdin=authorization)
         return json.loads(output)
 
     def get(url, authorization=""):
@@ -93,8 +96,11 @@ def verify(compose, simulate_alert):
 
     eventually(lambda: prometheus('probe_success' + label))
     before = total(counter)
+    trace_id = secrets.token_hex(16)
+    traceparent = f"00-{trace_id}-{secrets.token_hex(8)}-01"
     code, raw = http("http://app:8000/api/groups", "POST",
-                     {"name": "Observability smoke test", "description": "", "currency": "KZT"})
+                     {"name": "Observability smoke test", "description": "", "currency": "KZT"},
+                     traceparent=traceparent)
     assert code == 201, code
     group = json.loads(raw)
     group_url = "http://app:8000/api/groups/" + group["id"]
@@ -104,19 +110,17 @@ def verify(compose, simulate_alert):
         eventually(lambda: prometheus("splitwise_balance_calculation_duration_seconds_count" + label))
 
         def correlated_trace():
-            log_query = '{service_name="splitwise-pro"} | deployment_environment_name="' + environment + '"'
+            log_query = (
+                '{service_name="splitwise-pro"} '
+                f'| deployment_environment_name="{environment}" | trace_id="{trace_id}"'
+            )
             result = get("http://loki:3100/loki/api/v1/query_range?" + urlencode(
-                {"query": log_query, "limit": 30}
+                {"query": log_query, "limit": 5}
             ))
-            for stream in result["data"]["result"]:
-                for entry in stream["values"]:
-                    metadata = {**stream["stream"], **(entry[2] if len(entry) > 2 else {})}
-                    trace_id = metadata.get("trace_id")
-                    if trace_id and len(trace_id) == 32:
-                        code, trace = http("http://tempo:3200/api/traces/" + trace_id)
-                        if code == 200 and json.loads(trace):
-                            return True
-            return False
+            if not result["data"]["result"]:
+                return False
+            trace = get("http://tempo:3200/api/traces/" + trace_id)
+            return "POST /api/groups" in json.dumps(trace) and "database.query" in json.dumps(trace)
 
         eventually(correlated_trace)
         print("PostgreSQL, Grafana, exported metrics, Loki logs and correlated Tempo traces verified")
