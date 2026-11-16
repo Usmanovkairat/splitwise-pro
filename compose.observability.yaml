@@ -1,0 +1,101 @@
+services:
+  app:
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+      OTEL_METRIC_EXPORT_INTERVAL: "5000"
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.123.0
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./observability/collector.yaml:/etc/otel/config.yaml:ro
+    restart: unless-stopped
+    mem_limit: 256m
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./observability/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - ./observability/alerts.yaml:/etc/prometheus/alerts.yaml:ro
+      - ./observability/alerts.test.yaml:/etc/prometheus/alerts.test.yaml:ro
+      - ./observability/probes-${SPLITWISE_ENVIRONMENT:-development}.yaml:/etc/prometheus/probes.yaml:ro
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+    mem_limit: 384m
+  blackbox:
+    image: prom/blackbox-exporter:v0.26.0
+    command: ["--config.file=/etc/blackbox_exporter/config.yaml"]
+    volumes:
+      - ./observability/blackbox.yaml:/etc/blackbox_exporter/config.yaml:ro
+    restart: unless-stopped
+    mem_limit: 96m
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    command: ["--config.file=/etc/alertmanager/config.yaml", "--storage.path=/alertmanager"]
+    volumes:
+      - ./observability/alertmanager.yaml:/etc/alertmanager/config.yaml:ro
+      - alertmanager_data:/alertmanager
+    secrets:
+      - oncall_webhook_token
+    restart: unless-stopped
+    mem_limit: 128m
+  tempo:
+    image: grafana/tempo:2.7.1
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./observability/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    restart: unless-stopped
+    mem_limit: 384m
+  loki:
+    image: grafana/loki:3.4.2
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ./observability/loki.yaml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    restart: unless-stopped
+    mem_limit: 384m
+  grafana:
+    image: grafana/grafana:11.6.0
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set a Grafana admin password for this environment}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./observability/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./observability/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./observability/grafana/json:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+    mem_limit: 384m
+  oncall:
+    build: ./oncall
+    environment:
+      ONCALL_WEBHOOK_TOKEN: ${ONCALL_WEBHOOK_TOKEN:?Export an on-call token or put it in the Compose env file}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      ONCALL_ENVIRONMENT: ${SPLITWISE_ENVIRONMENT:-development}
+      ONCALL_NOTIFICATION_URL: ${ONCALL_NOTIFICATION_URL:-}
+      ONCALL_NOTIFICATION_TOKEN: ${ONCALL_NOTIFICATION_TOKEN:-}
+      PROMETHEUS_URL: http://prometheus:9090
+      LOKI_URL: http://loki:3100
+      TEMPO_URL: http://tempo:3200
+    volumes:
+      - oncall_data:/data
+    restart: unless-stopped
+    mem_limit: 192m
+secrets:
+  oncall_webhook_token:
+    environment: ONCALL_WEBHOOK_TOKEN
+volumes:
+  prometheus_data:
+  alertmanager_data:
+  tempo_data:
+  loki_data:
+  grafana_data:
+  oncall_data:

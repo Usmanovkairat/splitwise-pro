@@ -1,0 +1,77 @@
+rule_files: [alerts.yaml]
+evaluation_interval: 15s
+tests:
+  - name: broken development, healthy production
+    interval: 15s
+    input_series:
+      - series: 'splitwise_http_requests_total{environment="development"}'
+        values: '0+10x40'
+      - series: 'splitwise_api_errors_total{environment="development"}'
+        values: '0+2x40'
+      - series: 'splitwise_http_request_duration_seconds_bucket{environment="development",le="1"}'
+        values: '0+1x40'
+      - series: 'splitwise_http_request_duration_seconds_bucket{environment="development",le="2"}'
+        values: '0+10x40'
+      - series: 'splitwise_http_request_duration_seconds_bucket{environment="development",le="+Inf"}'
+        values: '0+10x40'
+      - series: 'splitwise_expense_creation_failures_total{environment="development"}'
+        values: '0+1x40'
+      - series: 'probe_success{job="splitwise-probes",instance="app",probe="app",environment="development"}'
+        values: '1+0x40'
+      - series: 'probe_success{job="splitwise-probes",instance="database",probe="database",environment="development"}'
+        values: '0+0x40'
+      - series: 'splitwise_http_requests_total{environment="production"}'
+        values: '0+10x40'
+      - series: 'splitwise_api_errors_total{environment="production"}'
+        values: '0+0x40'
+      - series: 'probe_success{job="splitwise-probes",instance="app",probe="app",environment="production"}'
+        values: '0+0x40'
+    alert_rule_test:
+      - alertname: HighAPIErrorRate
+        eval_time: 10m
+        exp_alerts:
+          - exp_labels: {environment: development, service: splitwise-pro, severity: critical}
+            exp_annotations: {summary: HTTP 5xx rate above 5%}
+      - alertname: HighAPILatency
+        eval_time: 10m
+        exp_alerts:
+          - exp_labels: {environment: development, service: splitwise-pro, severity: warning}
+            exp_annotations: {summary: p95 API latency above one second}
+      - alertname: ExpenseCreationFailure
+        eval_time: 10m
+        exp_alerts:
+          - exp_labels: {environment: development, service: splitwise-pro, severity: warning}
+            exp_annotations: {summary: At least three expense creation server errors in five minutes}
+      - alertname: DatabaseUnavailable
+        eval_time: 1m
+        exp_alerts:
+          - exp_labels: {environment: development, service: splitwise-pro, severity: critical, job: splitwise-probes, probe: database, instance: database}
+            exp_annotations: {summary: Application is live but PostgreSQL readiness is failing}
+      - alertname: ApplicationDown
+        eval_time: 1m45s
+        exp_alerts: []
+      - alertname: ApplicationDown
+        eval_time: 2m
+        exp_alerts:
+          - exp_labels: {environment: production, service: splitwise-pro, severity: critical, job: splitwise-probes, probe: app, instance: app}
+            exp_annotations: {summary: Application liveness probe is failing}
+  - name: low traffic does not fire rate alerts
+    interval: 15s
+    input_series:
+      - series: 'splitwise_http_requests_total{environment="development"}'
+        values: '0 1 2 3 4 5 5+0x35'
+      - series: 'splitwise_api_errors_total{environment="development"}'
+        values: '0 1 2 3 4 5 5+0x35'
+      - series: 'splitwise_http_request_duration_seconds_bucket{environment="development",le="1"}'
+        values: '0+0x40'
+      - series: 'splitwise_http_request_duration_seconds_bucket{environment="development",le="2"}'
+        values: '0 1 2 3 4 5 5+0x35'
+      - series: 'splitwise_http_request_duration_seconds_bucket{environment="development",le="+Inf"}'
+        values: '0 1 2 3 4 5 5+0x35'
+    alert_rule_test:
+      - alertname: HighAPIErrorRate
+        eval_time: 6m
+        exp_alerts: []
+      - alertname: HighAPILatency
+        eval_time: 6m
+        exp_alerts: []

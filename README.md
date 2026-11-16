@@ -1,5 +1,9 @@
 # SplitWise Pro
 
+## DevOps and observability
+
+Use the [observability guide](docs/devops-observability.md) to run isolated PostgreSQL environments, inspect Grafana, exercise alerts and review the manual production promotion process. GitHub Actions evidence is available on the [Actions page](https://github.com/Usmanovkairat/splitwise-pro/actions).
+
 ## Final verified implementation — 2026-11-02
 
 Independent QA verified commit `23407fba510e13fbac195a25ee9c5f0868bbdaab` in successful [Actions run 41452285813](https://github.com/Usmanovkairat/splitwise-pro/actions/runs/41452285813): **68 backend tests, 28 frontend tests, 8 mock browser tests, and 22 browser scenarios each against SQLite, PostgreSQL and the actual Docker Compose image passed**. Full-ledger recreation retained groups, members, expenses/shares, partial settlements, balances and analytics. Both verification and infrastructure jobs passed; Terraform schema validation passed. The final source includes separately named expense creation, navigation and persistence acceptance scenarios.

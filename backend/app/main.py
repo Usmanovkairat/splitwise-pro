@@ -1,20 +1,41 @@
 """Run: uvicorn backend.app.main:app --host 127.0.0.1 --port 8000."""
 
 import os
+from contextlib import asynccontextmanager, contextmanager
 from datetime import date
 from threading import RLock
 from fastapi import FastAPI, Query, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from opentelemetry.trace import StatusCode
 from .domain import DomainError
 from .repository import MemoryRepository
 from .service import Service
+from .telemetry import TelemetryMiddleware, create_telemetry
 from .schemas import GroupInput, GroupUpdate, MemberInput, ExpenseInput, SettlementInput
 
 
 def create_app(repository=None, storage=None):
-    app = FastAPI(title="SplitWise Pro API", version="1.0.0")
+    @asynccontextmanager
+    async def lifespan(app):
+        telemetry = create_telemetry()
+        app.state.telemetry = telemetry
+        remove_database_hooks = None
+        try:
+            if telemetry is not None:
+                engine = getattr(app.state.repository, "engine", None)
+                remove_database_hooks = telemetry.instrument_database(engine)
+            yield
+        finally:
+            app.state.telemetry = None
+            if remove_database_hooks is not None:
+                remove_database_hooks()
+            if telemetry is not None:
+                telemetry.shutdown()
+
+    app = FastAPI(title="SplitWise Pro API", version="1.0.0", lifespan=lifespan)
+    app.state.telemetry = None
     storage = storage or os.getenv("SPLITWISE_STORAGE", "sqlite")
     if repository is None:
         if storage == "memory":
@@ -37,6 +58,26 @@ def create_app(repository=None, storage=None):
         allow_headers=["Content-Type"],
     )
 
+    app.add_middleware(TelemetryMiddleware, state=app.state)
+
+    @contextmanager
+    def business_span(operation):
+        telemetry = app.state.telemetry
+        if telemetry is None:
+            yield
+            return
+        with telemetry.tracer.start_as_current_span(
+            operation, record_exception=False, set_status_on_exception=False,
+        ) as span:
+            try:
+                yield
+            except DomainError:
+                raise
+            except Exception as exc:
+                span.set_attribute("error.type", type(exc).__name__)
+                span.set_status(StatusCode.ERROR)
+                raise
+
     @app.exception_handler(DomainError)
     async def domain_error(request, exc):
         return JSONResponse(status_code=exc.status, content={"detail": exc.detail})
@@ -47,6 +88,10 @@ def create_app(repository=None, storage=None):
             ".".join(str(x) for x in e["loc"]) + ": " + e["msg"] for e in exc.errors()
         )
         return JSONResponse(status_code=422, content={"detail": details})
+
+    @app.get("/api/live", include_in_schema=False)
+    def liveness():
+        return {"status": "ok"}
 
     @app.get("/api/health")
     def health():
@@ -69,7 +114,7 @@ def create_app(repository=None, storage=None):
 
     @app.post("/api/groups", status_code=201)
     def create_group(data: GroupInput):
-        with lock:
+        with business_span("create_group"), lock:
             return service.create_group(data.model_dump())
 
     @app.get("/api/groups/{group_id}")
@@ -131,7 +176,7 @@ def create_app(repository=None, storage=None):
 
     @app.post("/api/groups/{group_id}/expenses", status_code=201)
     def add_expense(group_id: str, data: ExpenseInput):
-        with lock:
+        with business_span("add_expense"), lock:
             return service.expense(group_id, data.model_dump(mode="json"))
 
     @app.put("/api/groups/{group_id}/expenses/{expense_id}")
@@ -147,7 +192,7 @@ def create_app(repository=None, storage=None):
 
     @app.get("/api/groups/{group_id}/balances")
     def balances(group_id: str):
-        with lock:
+        with business_span("balances"), lock:
             return service.balances(group_id)
 
     @app.get("/api/groups/{group_id}/settlements")
@@ -161,7 +206,7 @@ def create_app(repository=None, storage=None):
 
     @app.post("/api/groups/{group_id}/settlements", status_code=201)
     def add_settlement(group_id: str, data: SettlementInput):
-        with lock:
+        with business_span("add_settlement"), lock:
             return service.settlement(group_id, data.model_dump(mode="json"))
 
     @app.get("/api/groups/{group_id}/analytics")

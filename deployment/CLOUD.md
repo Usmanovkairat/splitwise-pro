@@ -25,21 +25,9 @@ Official references checked during implementation:
 - [Terraform Google compute instance](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_instance) and [billing budget](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/billing_budget) resource definitions.
 - [Google Free Program](https://docs.cloud.google.com/free/docs/free-cloud-features): account eligibility, trial duration and resource quotas must be checked for the actual account. This implementation neither upgrades an account nor guarantees zero cost.
 
-## Gated continuous deployment
+## Manual production promotion
 
-`.github/workflows/deploy.yml` listens only for a successful `Verify SplitWise Pro` run on `main` in this repository. It checks out that exact verified commit, refuses an obsolete main revision, builds/pushes its image, and deploys an immutable digest through IAP. The `production` environment gates credentials. Failed CI does not trigger a deployment. Deployment concurrency is serialized.
-
-The VM script `deployment/deploy-gcp.sh` pulls the image before downtime, stops the app, makes a protected `pg_dump`, replaces the app image, waits for Compose health and checks the HTTP health endpoint. A failed release restores the prior Compose configuration and attempts image rollback, then fails the job. A schema-incompatible migration can still require a reviewed restore from the backup; an automatic image rollback is not a promise that database downgrade is safe. The script retains backups and needs a retention/off-VM backup policy before long-term operation.
-
-Before enabling CD, the account owner must:
-
-1. Provision the reviewed Terraform infrastructure with explicit cost approval. Configure the `production` GitHub Environment, restrict it to `main`, and add required reviewers if available for the repository plan.
-2. Configure Google Workload Identity Federation for GitHub OIDC. Restrict provider conditions to this exact repository and `refs/heads/main`; prefer numeric repository/owner IDs as additional conditions. Grant the deploy identity only the needed instance lookup, IAP tunnel and OS Login admin permissions, and service-account-user permission on the VM's service account. Bind `roles/iam.workloadIdentityUser` only to the scoped GitHub principal. No JSON service-account key is required.
-3. Publish the GHCR package and explicitly make the application image anonymously pullable, or implement a separately reviewed private-registry credential mechanism. The VM has no GHCR token. A private package makes the initial `docker pull` fail before the current app is stopped.
-4. Set repository/environment variables: `GHCR_IMAGE` (lowercase `ghcr.io/OWNER/splitwise-pro`), `GCP_PROJECT_ID`, `GCP_ZONE`, `GCP_VM_NAME`, `GCP_WORKLOAD_IDENTITY_PROVIDER` (full provider resource), and `GCP_DEPLOY_SERVICE_ACCOUNT` (email). Keep `DEPLOY_ENABLED` unset/false until the tested VM, WIF and image permissions are ready. Then explicitly set `DEPLOY_ENABLED=true`.
-5. Merge a verified change into `main`, approve the production environment if required, inspect the deployment logs, open the IAP tunnel and run browser acceptance checks. Record the actual revision, image digest and result in the GitHub deployment issue.
-
-GitHub Environment access and Google IAM permissions are account-side settings and have not been created or verified. The automatic path is prepared, not active.
+See [release procedure](../docs/manual-promotion.md). The prior automatic main-to-production workflow has been replaced by manual promotion. Existing protected GCP infrastructure, availability and account dependencies still apply.
 
 ## Local validation evidence
 
