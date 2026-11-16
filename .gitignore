@@ -13,3 +13,6 @@ frontend/dist/
 test-results/
 frontend/playwright-report/
 *.tsbuildinfo
+
+.env.development
+.env.production

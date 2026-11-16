@@ -45,7 +45,7 @@ jobs:
       - name: Validate OpenAPI contract
         run: python -m openapi_spec_validator openapi.yml
       - name: Test backend, SQLite and PostgreSQL migration
-        run: python -m pytest backend/tests -q
+        run: python -m pytest backend/tests observability/test_promotion.py -q
       - name: Test frontend
         run: npm --prefix frontend test
       - name: Build frontend
@@ -123,3 +123,153 @@ jobs:
       - name: Validate infrastructure schema without provisioning
         working-directory: infra/gcp
         run: terraform validate -no-color
+
+  release-development:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [verify, infrastructure, observability]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: development
+    permissions:
+      contents: read
+      packages: write
+    env:
+      POSTGRES_PASSWORD: ci-development-disposable
+      SPLITWISE_ENVIRONMENT: development
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set canonical registry path
+        run: echo "REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish candidate
+        uses: docker/build-push-action@v6
+        id: publish
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REGISTRY_IMAGE }}:${{ github.sha }}
+      - name: Deploy exact candidate to disposable development
+        env:
+          DIGEST: ${{ steps.publish.outputs.digest }}
+        run: |
+          [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "SPLITWISE_IMAGE=$REGISTRY_IMAGE@$DIGEST" >> "$GITHUB_ENV"
+          SPLITWISE_IMAGE="$REGISTRY_IMAGE@$DIGEST" docker compose -p splitwise-dev up -d --no-build --wait --wait-timeout 180
+          curl --fail --silent http://127.0.0.1:8000/api/health | jq -e '.status == "ok" and .database == "postgresql"'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm --prefix frontend ci
+      - name: Test the exact development image in Chromium
+        working-directory: frontend
+        env:
+          QA_BASE_URL: http://127.0.0.1:8000
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright test --config playwright.integration.config.ts
+      - name: Write verified release metadata
+        run: |
+          jq -n --arg image "$SPLITWISE_IMAGE" --arg revision "$GITHUB_SHA" '{image:$image, revision:$revision}' > release.json
+          printf 'Development verified image `%s`\n\nRun ID `%s`\n' "$SPLITWISE_IMAGE" "$GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verified-development-${{ github.run_attempt }}
+          path: release.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Remove disposable development environment
+        if: always()
+        run: docker compose -p splitwise-dev down -v
+
+  observability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    env:
+      POSTGRES_PASSWORD: disposable-dev-db
+      GRAFANA_ADMIN_PASSWORD: disposable-dev-grafana
+      ONCALL_WEBHOOK_TOKEN: disposable-dev-webhook-token-0123456789
+      SPLITWISE_ENVIRONMENT: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test responder and validate dashboard JSON
+        run: |
+          python -m unittest discover -s oncall -v
+          python -m json.tool observability/grafana/json/splitwise.json > /dev/null
+      - name: Validate telemetry configuration and alert rules
+        run: |
+          d=(docker compose -f compose.yaml -f compose.observability.yaml -p splitwise-dev)
+          "${d[@]}" config -q
+          "${d[@]}" run --rm --no-deps --entrypoint /bin/promtool prometheus check config /etc/prometheus/prometheus.yaml
+          "${d[@]}" run --rm --no-deps --entrypoint /bin/promtool prometheus test rules /etc/prometheus/alerts.test.yaml
+          "${d[@]}" run --rm --no-deps otel-collector validate --config=/etc/otel/config.yaml
+      - name: Start development stack
+        run: docker compose -f compose.yaml -f compose.observability.yaml -p splitwise-dev up -d --build --wait --wait-timeout 180
+      - name: Verify PostgreSQL workspace isolation
+        run: |
+          export POSTGRES_PASSWORD=disposable-prod-db SPLITWISE_ENVIRONMENT=production SPLITWISE_PORT=8001
+          export GRAFANA_ADMIN_PASSWORD=disposable-prod-grafana GRAFANA_PORT=3001
+          export ONCALL_WEBHOOK_TOKEN=disposable-prod-webhook-token-abcdefghijklmnopqrstuvwxyz
+          d=(docker compose -f compose.yaml -f compose.observability.yaml -p splitwise-prod)
+          "${d[@]}" build oncall
+          "${d[@]}" up -d --no-build --wait --wait-timeout 180
+          python observability/verify_isolation.py
+          python observability/smoke.py -- -f compose.yaml -f compose.observability.yaml -p splitwise-prod
+      - name: Verify metrics, logs, traces, dashboard and alert-to-incident
+        run: python observability/smoke.py --alert -- -f compose.yaml -f compose.observability.yaml -p splitwise-dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Capture the running Grafana dashboards
+        continue-on-error: true
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          node --input-type=module <<'JS'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch();
+          try {
+            for (const [environment, port, password] of [
+              ['development', 3000, process.env.GRAFANA_ADMIN_PASSWORD],
+              ['production-like', 3001, 'disposable-prod-grafana'],
+            ]) {
+              const context = await browser.newContext({viewport: {width: 1440, height: 1000}});
+              const page = await context.newPage();
+              await page.goto(`http://127.0.0.1:${port}/d/splitwise-observability`);
+              await page.locator('input[name=user]').fill('admin');
+              await page.locator('input[name=password]').fill(password);
+              await page.getByRole('button', {name: 'Log in', exact: true}).click();
+              await page.getByText('HTTP requests per second', {exact: true}).first().waitFor();
+              await page.screenshot({path: `../grafana-${environment}.png`, fullPage: true});
+              await context.close();
+            }
+          } finally {
+            await browser.close();
+          }
+          JS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: grafana-dashboards
+          path: grafana-*.png
+          if-no-files-found: ignore
+      - name: Capture development stack logs on failure
+        if: failure()
+        run: docker compose -f compose.yaml -f compose.observability.yaml -p splitwise-dev logs --no-color
+      - name: Stop disposable test stacks
+        if: always()
+        run: |
+          docker compose -f compose.yaml -f compose.observability.yaml -p splitwise-dev down -v
+          POSTGRES_PASSWORD=disposable-prod-db SPLITWISE_ENVIRONMENT=production SPLITWISE_PORT=8001 GRAFANA_PORT=3001 \
+            docker compose -f compose.yaml -f compose.observability.yaml -p splitwise-prod down -v

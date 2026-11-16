@@ -1,84 +1,85 @@
-name: Deploy protected GCP workspace
-
+name: Promote verified development image
 on:
-  workflow_run:
-    workflows: [Verify SplitWise Pro]
-    types: [completed]
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      development_run:
+        description: Successful Verify SplitWise Pro run ID on main
+        required: true
+        type: string
 
 permissions:
   contents: read
-  packages: write
-  id-token: write
+  actions: read
 
 concurrency:
   group: splitwise-production
   cancel-in-progress: false
 
 jobs:
+  verify-release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      image: ${{ steps.verify.outputs.image }}
+      revision: ${{ steps.verify.outputs.revision }}
+    steps:
+      - name: Verify trusted development run and locate its exact image
+        id: verify
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ inputs.development_run }}
+        run: |
+          set -euo pipefail
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$REPO/actions/runs/$RUN_ID" > run.json
+          jq -e --arg repo "$REPO" '
+            .conclusion == "success" and .event == "push" and .head_branch == "main"
+            and .head_repository.full_name == $repo and .path == ".github/workflows/ci.yml"
+          ' run.json > /dev/null
+          attempt=$(jq -er '.run_attempt | numbers' run.json)
+          revision=$(jq -er '.head_sha | select(test("^[a-f0-9]{40}$"))' run.json)
+          gh run download "$RUN_ID" --repo "$REPO" --name "verified-development-$attempt" --dir release
+          image=$(jq -er --arg revision "$revision" '
+            select(.revision == $revision) | .image | strings
+          ' release/release.json)
+          registry="ghcr.io/${REPO,,}"
+          [[ "${image%@*}" == "$registry" && "${image##*@}" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+
   deploy:
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.head_repository.full_name == github.repository &&
-      vars.DEPLOY_ENABLED == 'true'
+    needs: verify-release
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT: ${{ vars.GCP_PROJECT_ID }}
+      ZONE: ${{ vars.GCP_ZONE }}
+      VM: ${{ vars.GCP_VM_NAME }}
+      IMAGE: ${{ needs.verify-release.outputs.image }}
+      REVISION: ${{ needs.verify-release.outputs.revision }}
     steps:
-      - name: Check out exactly the verified revision
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-      - name: Check required deployment configuration
+      - name: Require configured production target
         env:
-          IMAGE: ${{ vars.GHCR_IMAGE }}
-          PROJECT: ${{ vars.GCP_PROJECT_ID }}
-          ZONE: ${{ vars.GCP_ZONE }}
-          VM: ${{ vars.GCP_VM_NAME }}
-          WIF: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          ENABLED: ${{ vars.DEPLOY_ENABLED }}
         run: |
-          test -n "$IMAGE" && test -n "$PROJECT" && test -n "$ZONE" && test -n "$VM"
-          test -n "$WIF" && test -n "$SERVICE_ACCOUNT"
-          [[ "$IMAGE" =~ ^ghcr.io/[a-z0-9._/-]+$ ]]
-      - name: Refuse an obsolete main revision
-        env:
-          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: |
-          current_sha=$(git ls-remote origin refs/heads/main | cut -f1)
-          test "$VERIFIED_SHA" = "$current_sha"
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Publish verified revision image
-        id: image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: ${{ vars.GHCR_IMAGE }}:${{ github.event.workflow_run.head_sha }}
-      - name: Authenticate without a stored service-account key
-        uses: google-github-actions/auth@v2
+          test "$ENABLED" = true
+          test -n "$PROJECT" && test -n "$ZONE" && test -n "$VM"
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
       - uses: google-github-actions/setup-gcloud@v2
-      - name: Transfer release script through IAP
-        env:
-          PROJECT: ${{ vars.GCP_PROJECT_ID }}
-          ZONE: ${{ vars.GCP_ZONE }}
-          VM: ${{ vars.GCP_VM_NAME }}
+      - name: Deploy exact development digest and check production health
         run: |
-          gcloud compute scp deployment/deploy-gcp.sh "$VM:/tmp/splitwise-deploy.sh" --project="$PROJECT" --zone="$ZONE" --tunnel-through-iap --quiet
-      - name: Deploy immutable image, check health and attempt rollback on failure
-        env:
-          PROJECT: ${{ vars.GCP_PROJECT_ID }}
-          ZONE: ${{ vars.GCP_ZONE }}
-          VM: ${{ vars.GCP_VM_NAME }}
-          IMAGE: ${{ vars.GHCR_IMAGE }}@${{ steps.image.outputs.digest }}
+          gcloud compute scp deployment/deploy-gcp.sh "$VM:~/splitwise-deploy-$GITHUB_RUN_ID.sh" --project="$PROJECT" --zone="$ZONE" --tunnel-through-iap --quiet
+          gcloud compute ssh "$VM" --project="$PROJECT" --zone="$ZONE" --tunnel-through-iap --quiet --command="sudo bash ~/splitwise-deploy-$GITHUB_RUN_ID.sh '$IMAGE'"
+      - name: Record healthy release
         run: |
-          gcloud compute ssh "$VM" --project="$PROJECT" --zone="$ZONE" --tunnel-through-iap --quiet --command="sudo bash /tmp/splitwise-deploy.sh '$IMAGE'"
+          printf 'Production deployed revision `%s`\n\nImage `%s`\n\nRollback: dispatch a previous healthy development run or follow docs/manual-promotion.md.\n' "$REVISION" "$IMAGE" >> "$GITHUB_STEP_SUMMARY"

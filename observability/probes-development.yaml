@@ -1,0 +1,8 @@
+- targets: [http://app:8000/api/live]
+  labels:
+    probe: app
+    environment: development
+- targets: [http://app:8000/api/health]
+  labels:
+    probe: database
+    environment: development

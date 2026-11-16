@@ -1,0 +1,50 @@
+groups:
+  - name: splitwise
+    rules:
+      - alert: HighAPIErrorRate
+        expr: |
+          sum by (environment) (rate(splitwise_api_errors_total[5m]))
+            / sum by (environment) (rate(splitwise_http_requests_total[5m])) > 0.05
+          and on (environment) sum by (environment) (increase(splitwise_http_requests_total[5m])) >= 20
+        for: 5m
+        labels:
+          service: splitwise-pro
+          severity: critical
+        annotations:
+          summary: HTTP 5xx rate above 5%
+      - alert: HighAPILatency
+        expr: |
+          histogram_quantile(0.95, sum by (environment, le) (rate(splitwise_http_request_duration_seconds_bucket[5m]))) > 1
+          and on (environment) sum by (environment) (increase(splitwise_http_requests_total[5m])) >= 20
+        for: 5m
+        labels:
+          service: splitwise-pro
+          severity: warning
+        annotations:
+          summary: p95 API latency above one second
+      - alert: ApplicationDown
+        expr: probe_success{job="splitwise-probes",probe="app"} == 0 or up{job="splitwise-probes",probe="app"} == 0
+        for: 2m
+        labels:
+          service: splitwise-pro
+          severity: critical
+        annotations:
+          summary: Application liveness probe is failing
+      - alert: DatabaseUnavailable
+        expr: |
+          (probe_success{job="splitwise-probes",probe="database"} == 0)
+          and on (environment) (probe_success{job="splitwise-probes",probe="app"} == 1)
+        for: 1m
+        labels:
+          service: splitwise-pro
+          severity: critical
+        annotations:
+          summary: Application is live but PostgreSQL readiness is failing
+      - alert: ExpenseCreationFailure
+        expr: sum by (environment) (increase(splitwise_expense_creation_failures_total[5m])) >= 3
+        for: 1m
+        labels:
+          service: splitwise-pro
+          severity: warning
+        annotations:
+          summary: At least three expense creation server errors in five minutes
